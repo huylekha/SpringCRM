@@ -1,0 +1,24 @@
+---
+description: Ultimate architecture rules for mission-critical Spring Boot backend systems.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Architecture (15 Rules)
+
+Stack baseline for this ruleset: Spring Boot, Java 17+, PostgreSQL, Redis, Docker, Kubernetes.
+
+1. Use Clean Architecture or Hexagonal Architecture as the default system shape.
+2. Enforce strict layering: Controller -> Application Service -> Domain Service -> Repository -> Infrastructure.
+3. Keep controllers thin; controllers only validate, delegate, and map responses.
+4. Keep domain logic independent from frameworks, HTTP, persistence, and messaging details.
+5. Apply dependency inversion; inner layers must not depend on outer layers.
+6. Prohibit cyclic dependencies between modules at compile time.
+7. Organize code by business capability (feature/module first), not technical folder dumping.
+8. Define explicit module boundaries and public contracts for inter-module calls.
+9. Use DTOs for inbound/outbound API contracts; never expose JPA entities to API consumers.
+10. Isolate external integrations (payment, notification, third-party APIs) in infrastructure adapters.
+11. Use domain events for cross-module side effects to reduce coupling.
+12. Keep shared kernel minimal (`common`) and ban business logic leakage into shared utilities.
+13. Require backward-compatible evolution for public APIs and inter-service contracts.
+14. Make non-functional requirements explicit: latency, throughput, availability, RTO/RPO.
+15. Design for operability first: health checks, graceful shutdown, and production-safe defaults.

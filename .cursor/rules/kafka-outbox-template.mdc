@@ -1,0 +1,50 @@
+---
+description: Template rules for generating Kafka producer-consumer flows with transactional outbox, DLQ, retries, and idempotent handling.
+globs: "**/*.{java,yml,yaml}"
+alwaysApply: false
+---
+
+# Kafka + Outbox Template
+
+## Generation Goal
+- When asked for event-driven integration, generate complete skeleton files for:
+  - immutable event contract
+  - topic constants
+  - producer publisher
+  - consumer listener
+  - outbox entity/repository/service/worker
+  - config snippets for producer, consumer, and DLQ
+
+## Required Event Contract
+- Use immutable event types (Java record preferred).
+- Include:
+  - `eventId`
+  - `eventVersion`
+  - `occurredAt`
+  - aggregate id and essential payload fields
+
+## Required Topic and DLQ Pattern
+- Topic format: `crm.<aggregate>.<action>`.
+- DLQ topic format: `<topic>.dlq`.
+- Use aggregate/business id as Kafka key.
+
+## Required Outbox Pattern
+- In same DB transaction as domain write:
+  - persist domain change
+  - persist outbox row
+- Background publisher reads `PENDING` outbox rows and publishes to Kafka.
+- After publish success, mark outbox row `SENT`; on failure, increment retry count.
+
+## Required Generated Artifacts
+- `<EventName>.java`
+- `<Aggregate>EventPublisher.java`
+- `<Aggregate>EventConsumer.java`
+- `OutboxEvent.java`, `OutboxEventRepository.java`
+- `OutboxService.java`, `OutboxPublisherWorker.java`
+- `KafkaTopicConfig.java`
+- `application-*.yml` snippets for retries, idempotence, acks, and DLQ behavior
+
+## Safety Rules
+- Never publish JPA entities directly as event payload.
+- Consumer handlers must be idempotent.
+- Keep heavy I/O out of listener thread; delegate to service layer.

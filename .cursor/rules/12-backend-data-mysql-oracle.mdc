@@ -1,0 +1,35 @@
+---
+description: Data and migration standards for MySQL default and Oracle optional profiles, including schema, Flyway/Liquibase, and query performance.
+globs: "backend/**/*.{java,sql,yml,yaml}"
+alwaysApply: false
+---
+
+# Backend Data Standards (MySQL + Oracle)
+
+## Database Strategy
+- MySQL is default for local/dev and standard deployments.
+- Oracle is optional for enterprise environments.
+- Keep DB-specific settings behind Spring profiles (`mysql`, `oracle`).
+
+## Configuration Templates
+- Keep shared config in `application.yml`.
+- Keep vendor config in `application-mysql.yml` and `application-oracle.yml`.
+- Keep secrets in environment variables, never hardcoded.
+
+## Migration Rules
+- Use one migration tool consistently (Flyway or Liquibase).
+- Keep migration folders split:
+  - `db/migration/common`
+  - `db/migration/mysql`
+  - `db/migration/oracle`
+- Prefer additive, backward-compatible migrations.
+
+## Schema and Query Rules
+- Use snake_case for table and column names.
+- Keep audit fields: `created_at`, `updated_at`, optional `deleted_at`.
+- Use UUID external IDs consistently; keep PK/FK types aligned.
+- Keep query loading strategy aligned with `spring-transaction-rules.mdc`.
+
+## Indexing and Capacity
+- Add indexes for common filter/sort/join paths.
+- Keep high-traffic query tuning aligned with `spring-db-performance.mdc`.

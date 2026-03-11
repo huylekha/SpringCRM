@@ -1,0 +1,17 @@
+---
+description: Ultimate logging and observability rules for operating Spring Boot at scale.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Logging and Observability (10 Rules)
+
+1. Use structured logs (JSON/logfmt) with stable field names.
+2. Include `request_id`, `trace_id`, and `user_id` (when available) in logs.
+3. Propagate trace context across HTTP, async jobs, and messaging boundaries.
+4. Expose health and readiness endpoints separately for Kubernetes orchestration.
+5. Publish core metrics: latency, throughput, error rate, saturation, queue depth.
+6. Define SLOs/SLIs for critical APIs and alert on error-budget burn, not raw noise.
+7. Capture business metrics for core flows (payments, onboarding, order completion).
+8. Log at appropriate levels; avoid debug-level noise in production paths.
+9. Instrument external calls with timing, status, retries, and failure reason tags.
+10. Ensure logs and metrics are searchable and retained per compliance requirements.

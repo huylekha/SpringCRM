@@ -1,0 +1,41 @@
+---
+description: Template rules for generating OpenFeign clients with timeout, retry, circuit breaker, and fallback in Spring Boot microservices.
+globs: "**/*.{java,yml,yaml}"
+alwaysApply: false
+---
+
+# OpenFeign + Resilience Template
+
+## Generation Goal
+- When asked to integrate service-to-service REST, generate complete skeleton files for:
+  - Feign client interface
+  - Feign config
+  - Resilience4j config
+  - Fallback handler
+  - Service adapter usage
+
+## Required Structure
+- Place Feign code under `infrastructure/client/<target-service>/`.
+- Keep DTO contracts under `infrastructure/client-dto/<target-service>/`.
+- Keep fallback and adapter logic separate from domain service.
+
+## Required Defaults
+- Timeout defaults:
+  - connect timeout: `3000`
+  - read timeout: `5000`
+- Resilience defaults:
+  - retry enabled for transient failures
+  - circuit breaker enabled for downstream outage
+  - fallback returns controlled failure response
+
+## Required Generated Artifacts
+- `<Target>Client.java` with `@FeignClient`.
+- `<Target>FeignConfig.java` for client options.
+- `<Target>ClientFallback.java` for graceful degrade path.
+- `<Target>ClientAdapter.java` for mapping external errors into internal exceptions.
+- `application-*.yml` snippets for Feign + Resilience settings.
+
+## Safety Rules
+- Never expose internal entity classes in Feign signatures.
+- Do not call Feign client directly from controller layer.
+- Wrap downstream timeout/5xx into stable domain error codes.

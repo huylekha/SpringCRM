@@ -1,0 +1,17 @@
+---
+description: Ultimate error handling rules for reliable Spring Boot production APIs.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Error Handling (10 Rules)
+
+1. Route all exceptions through centralized `@RestControllerAdvice`.
+2. Return structured error payloads with stable `error_code`, `message`, and optional `details`.
+3. Define a centralized `ErrorCode` enum as the single source of truth.
+4. Map each known exception type to a deterministic HTTP status and `error_code`.
+5. Never expose stack traces, SQL errors, or internal class names to clients.
+6. Use domain-specific exceptions (`BusinessException`, `ResourceNotFoundException`, etc.), never raw `Exception`.
+7. Include correlation identifiers (`request_id`, `trace_id`) in all error logs and responses when possible.
+8. Treat validation failures as first-class errors with explicit codes and field-level details.
+9. Log errors once at the boundary with full context; avoid duplicate noisy logging.
+10. Keep error codes backward compatible; never repurpose an existing code for a new meaning.

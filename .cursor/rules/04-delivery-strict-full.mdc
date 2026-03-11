@@ -1,0 +1,31 @@
+---
+description: Strict-full enterprise delivery checklist with mandatory contract, risk, rollback, and validation evidence gates.
+alwaysApply: false
+---
+
+# Delivery Strict Full
+
+## Mandatory Pre-Implementation Gate
+- Define objective and non-goals.
+- Enumerate impacted modules/files and dependency surfaces.
+- Identify API/data contract changes and compatibility impact.
+- Define test plan (unit/integration/e2e) and acceptance criteria.
+- Define risk and rollback strategy before editing.
+
+## Implementation Discipline
+- Use smallest safe incremental changes.
+- Keep one concern per change set.
+- Preserve BE/FE/DevOps boundaries and interface contracts.
+- Add comments only for complex logic.
+
+## Mandatory Validation Gate
+- Run lint checks on touched files.
+- Run relevant tests for changed behavior.
+- Validate build/package for affected stack when feasible.
+- Confirm error handling and edge cases were addressed.
+
+## Mandatory Reporting Gate
+- Report changed files by Backend/Frontend/DevOps.
+- Report verification evidence (commands run and outcomes).
+- Report remaining risks, assumptions, and rollback path.
+- Report recommended next action before merge/release.

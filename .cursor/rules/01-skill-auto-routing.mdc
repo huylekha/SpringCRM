@@ -1,0 +1,49 @@
+---
+description: Auto-routing guide for selecting backend, frontend, devops, or fullstack skills based on user request intent.
+alwaysApply: true
+---
+
+# Skill Auto Routing
+
+## Tag-Driven Routing
+- Supported role tags:
+  - `#BE` -> `backend-spring-enterprise`
+  - `#FE` -> `frontend-nextjs-enterprise`
+  - `#MB` -> `mobile-react-native-enterprise`
+  - `#QC` -> `qa-testing-enterprise`
+  - `#Test` -> `qa-testing-enterprise` (alias of `#QC`)
+  - `#OPS` -> `devops-gitlab-docker-cicd` (DevOps CI/CD expert, 15+ years)
+  - `#BA` -> `business-analyst-enterprise`
+  - `#SA` -> `solution-architect-enterprise`
+  - `#PM` -> `product-manager-enterprise`
+
+## Role Context Contract
+- `#BE`: backend-first context. Prioritize backend rules and backend specialist skills.
+- `#FE`: frontend-first context. Prioritize frontend rules and frontend specialist skills.
+- `#MB`: mobile-first context. Prioritize mobile specialist skills.
+- `#QC`/`#Test`: testing-first context. Prioritize QA/testing rules and skills.
+- `#OPS`: DevOps-first context. Prioritize CI/CD, Docker, and deployment rules/skills.
+- `#BA`: business-analysis-first context.
+- `#SA`: solution-architecture-first context.
+- `#PM`: product-management-first context.
+- Role context controls primary reasoning priority; file globs determine which domain rule files are loaded.
+
+## Tag Conflict Rule
+- If multiple role tags exist in one prompt, the last role tag is the primary context.
+- Example: `#BE ... #SA ...` -> use `solution-architect-enterprise`.
+- Strict tags are resolved first by `02-delivery-strict-mode.mdc`, then role routing is applied.
+
+## Fallback Routing (No role tag provided)
+- Testing strategy/architecture/audit requests: apply `fullstack-testing-enterprise`.
+- Backend architecture/design for large systems: apply `backend-spring-architecture-large-scale`.
+- Backend hardening/anti-500 requests: apply `backend-spring-error-hardening`.
+- Backend-only requests: apply `backend-spring-enterprise`.
+- Frontend audit/review/refactor requests: apply `frontend-nextjs-enterprise` with `frontend-react-anti-patterns-scale-fail.mdc`.
+- Frontend-only requests: apply `frontend-nextjs-enterprise`.
+- CI/CD, Docker, deploy, pipeline requests: apply `devops-gitlab-docker-cicd`.
+- Cross-layer requests (BE + FE + integration): apply `java-spring-nextjs-fullstack`.
+
+## Routing Behavior
+- Choose the most specific matching skill first.
+- For mixed requirements, combine fullstack orchestration with the specific skill.
+- Keep decisions consistent with `.cursor/skills/README.md`.

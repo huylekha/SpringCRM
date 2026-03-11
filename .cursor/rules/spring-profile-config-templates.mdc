@@ -1,0 +1,68 @@
+---
+description: Spring Boot profile and migration template rules for dual database setup with MySQL default and Oracle option.
+globs: "**/*.{yml,yaml,sql}"
+alwaysApply: false
+---
+
+# Spring Profile and Migration Templates
+
+## Profile Strategy
+- Keep base defaults in `application.yml`.
+- Keep MySQL config in `application-mysql.yml`.
+- Keep Oracle config in `application-oracle.yml`.
+- Activate profile by environment (`SPRING_PROFILES_ACTIVE=mysql|oracle`).
+
+## Required Config Files
+- `src/main/resources/application.yml`
+- `src/main/resources/application-mysql.yml`
+- `src/main/resources/application-oracle.yml`
+
+## Base Application Template
+- `application.yml` should include only shared defaults:
+  - `spring.application.name`
+  - `spring.jpa.open-in-view: false`
+  - `spring.jpa.hibernate.ddl-auto: validate`
+  - logging level defaults
+  - management/actuator defaults
+  - `spring.flyway.enabled: true`
+- Do not hardcode vendor-specific datasource values in base file.
+
+## MySQL Profile Template
+- `application-mysql.yml` should define:
+  - `spring.datasource.url: jdbc:mysql://...`
+  - `spring.datasource.username`
+  - `spring.datasource.password`
+  - `spring.datasource.driver-class-name: com.mysql.cj.jdbc.Driver`
+  - `spring.jpa.database-platform: org.hibernate.dialect.MySQLDialect`
+  - `spring.flyway.locations: classpath:db/migration/common,classpath:db/migration/mysql`
+
+## Oracle Profile Template
+- `application-oracle.yml` should define:
+  - `spring.datasource.url: jdbc:oracle:thin:@//...`
+  - `spring.datasource.username`
+  - `spring.datasource.password`
+  - `spring.datasource.driver-class-name: oracle.jdbc.OracleDriver`
+  - `spring.jpa.database-platform: org.hibernate.dialect.OracleDialect`
+  - `spring.flyway.locations: classpath:db/migration/common,classpath:db/migration/oracle`
+
+## Flyway Folder Structure
+- Keep migrations under:
+  - `src/main/resources/db/migration/common`
+  - `src/main/resources/db/migration/mysql`
+  - `src/main/resources/db/migration/oracle`
+- Put cross-database SQL in `common` only when syntax is portable.
+- Put vendor-specific SQL in `mysql` or `oracle` folders.
+
+## Migration Naming Convention
+- Use versioned names:
+  - `V1__init_schema.sql`
+  - `V2__create_customer_table.sql`
+  - `V3__add_customer_indexes.sql`
+- Keep version numbers synchronized between databases.
+- If one vendor needs an extra migration, document the reason in comments.
+
+## Generation Checklist
+- When generating config files, include all three profile files.
+- Keep secrets as environment variables, not literals.
+- Ensure `mysql` profile works locally by default.
+- Ensure `oracle` profile remains production-ready and isolated.

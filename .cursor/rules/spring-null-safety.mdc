@@ -1,0 +1,17 @@
+---
+description: Ultimate null-safety rules to prevent runtime null failures in Spring Boot.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Null Safety (10 Rules)
+
+1. Never return `null` from service or repository contracts where alternatives exist.
+2. Use `Optional<T>` for absent single-value lookup results at repository/service boundaries.
+3. Validate all external input (`@Valid`, `@NotNull`, `@NotBlank`, range checks) before business logic.
+4. Fail fast with explicit exceptions on invalid state instead of propagating nulls.
+5. Initialize collections to empty collections, not null references.
+6. Prefer constructor injection and `final` fields to avoid partially initialized objects.
+7. Guard all nullable integration responses before mapping into domain objects.
+8. Avoid chained dereferencing without guards; use explicit checks or mapping helpers.
+9. Enforce non-null contracts in DTOs and domain constructors.
+10. Ban `Optional.get()` without prior presence checks; use `orElseThrow`.

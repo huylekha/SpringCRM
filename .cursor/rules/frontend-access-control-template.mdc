@@ -1,0 +1,52 @@
+---
+description: On-demand template for frontend role-based access control using RoleGuard, permission matrix, and route/action-level authorization patterns.
+globs: "frontend/**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Frontend Access Control Template
+
+## Generation Goal
+- Generate reusable access-control building blocks for enterprise dashboards.
+- Support route-level and action-level authorization with consistent permission checks.
+
+## Required Artifacts
+- `features/auth/types/permission.ts`
+- `features/auth/lib/permission-matrix.ts`
+- `features/auth/lib/can.ts`
+- `components/auth/RoleGuard.tsx`
+- `components/auth/PermissionGuard.tsx` (optional but recommended)
+- `hooks/usePermission.ts`
+
+## Permission Model
+- Use explicit permission keys, for example:
+  - `USER_READ`
+  - `USER_WRITE`
+  - `ORDER_APPROVE`
+  - `PAYMENT_REFUND`
+- Keep role-to-permission mapping centralized in `permission-matrix.ts`.
+- Avoid hardcoded role checks scattered across feature components.
+
+## Guard Pattern
+- Use `RoleGuard`/`PermissionGuard` wrappers for conditional rendering.
+- Support both:
+  - hide UI when unauthorized
+  - disable actions with clear UX feedback
+- Do not mix authorization logic directly into complex UI trees.
+
+## Route-Level Authorization
+- Add route-level checks in layout/page guards where applicable.
+- Redirect unauthorized users to safe fallback pages.
+- Keep route policy and action policy consistent.
+
+## Action-Level Authorization
+- Enforce permission checks for:
+  - create/edit/delete actions
+  - approve/reject operations
+  - export/download sensitive data
+- Pair UI-level checks with backend enforcement; frontend guard is not security boundary alone.
+
+## Template Safety Rules
+- Never trust only client-side authorization.
+- Never expose privileged actions without permission checks.
+- Keep permission names stable and documented for team consistency.

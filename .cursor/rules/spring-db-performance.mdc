@@ -1,0 +1,17 @@
+---
+description: Ultimate database performance rules for PostgreSQL-backed Spring Boot systems.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Database Performance (10 Rules)
+
+1. Prevent N+1 queries by default using fetch planning (`JOIN FETCH`, entity graphs, batch fetch).
+2. Paginate all potentially large result sets; never return unbounded collections.
+3. Use covering indexes for frequent filter, sort, and join columns.
+4. Prefer projection/DTO queries for read-heavy endpoints over full entity loading.
+5. Avoid loading large object graphs into memory; fetch only required fields.
+6. Profile slow queries with `EXPLAIN ANALYZE` and tune SQL before scaling hardware.
+7. Keep transactions and result sets small to reduce lock contention.
+8. Use connection pooling with bounded pool size and sane timeout configuration.
+9. Optimize schema and indexes with real production-like data distributions.
+10. Introduce Redis caching only for measured hotspots with defined TTL and invalidation strategy.

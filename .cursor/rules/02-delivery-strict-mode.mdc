@@ -1,0 +1,41 @@
+---
+description: Strict mode router that applies strict-lite by default and escalates to strict-full for risky or explicitly requested tasks.
+alwaysApply: true
+---
+
+# Delivery Strict Mode Router
+
+## Mode Selection
+- Supported strict tags in prompt:
+  - `#SL`
+  - `#SF`
+- Supported role tags may appear together with strict tags:
+  - `#BE`, `#FE`, `#MB`, `#QC`, `#Test`, `#OPS`, `#BA`, `#SA`, `#PM`
+- If prompt contains `#SF`, force `strict-full`.
+- If prompt contains `#SL`, force `strict-lite`.
+- If both appear, `#SF` takes priority.
+- Strict mode is resolved before role/skill routing.
+- Default to `strict-lite` behavior for standard implementation requests.
+- Escalate to `strict-full` when:
+  - user explicitly asks for `strict-full`
+  - task impacts architecture, security, CI/CD, migration, or production rollout
+  - changes touch many modules or contain high regression risk
+- If user explicitly asks for `strict-lite`, keep lightweight gating.
+
+## Strict-Lite Baseline (Always On)
+- Before coding, define objective, impacted files, and test intent.
+- Prefer smallest safe change and avoid unrelated refactors.
+- Validate lints for touched files.
+- Report what was changed and what was verified.
+
+## Strict-Full Trigger
+- Apply the full governance defined in:
+  - `03-delivery-strict-lite.mdc`
+  - `04-delivery-strict-full.mdc`
+- Prefer explicit checkpoints for risk, rollback, and verification evidence.
+- Shortcut: user can type `#SF` to force this mode.
+
+## Safety Rules
+- Never hardcode secrets or credentials.
+- Never use destructive commands unless explicitly requested.
+- Never silently skip validation or deployment-critical checks.

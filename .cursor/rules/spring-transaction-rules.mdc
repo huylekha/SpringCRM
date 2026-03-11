@@ -1,0 +1,17 @@
+---
+description: Ultimate transaction and data integrity rules for Spring Boot services.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Transaction and Data Integrity (10 Rules)
+
+1. Define transaction boundaries only in application/service layer methods.
+2. Never open or manage transactions in controllers.
+3. Use `@Transactional(readOnly = true)` for read paths.
+4. Keep write transactions short and bounded; avoid network calls inside open transactions.
+5. Use optimistic locking (`@Version`) for concurrent updates on mutable aggregates.
+6. Enforce integrity with database constraints (PK, FK, unique, check), not only application code.
+7. Use idempotency keys for externally retried write operations.
+8. Apply transactional outbox for reliable event publication with database commits.
+9. Avoid distributed XA transactions; prefer saga or compensating workflow patterns.
+10. Declare rollback rules explicitly for checked exceptions where domain consistency requires it.

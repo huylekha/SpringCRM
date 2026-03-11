@@ -1,0 +1,104 @@
+---
+description: On-demand enterprise testing strategy rule for Spring Boot and React/Next.js systems, including pyramid, layers, tooling, examples, and CI/CD quality gates.
+alwaysApply: false
+---
+
+# Fullstack Testing Strategy (Enterprise)
+
+Use this rule when user asks for testing architecture, test plan, test checklist, go-live quality audit, or reliability hardening.
+
+## Required Output Sections
+- Testing philosophy and pyramid rationale.
+- Backend testing strategy.
+- Frontend testing strategy.
+- Test data strategy.
+- CI/CD integration and quality gates.
+- Coverage guidance and flaky-test prevention.
+- Testing best practices and production-readiness checklist.
+
+## 1) Testing Philosophy
+- Explain unit/integration/e2e test pyramid with speed-vs-confidence tradeoffs.
+- Prioritize deterministic, reliable, and fast feedback loops.
+- Emphasize maintainability of tests as first-class engineering concern.
+
+## 2) Backend Testing (Spring Boot)
+- Cover:
+  - unit tests (service/domain logic)
+  - repository tests (real DB with Testcontainers)
+  - controller/API tests (MockMvc/RestAssured)
+  - integration tests (cross-layer behavior)
+- Preferred tools:
+  - JUnit
+  - Mockito
+  - Testcontainers
+  - RestAssured
+
+## 3) Backend Rules
+- Service logic must have unit tests.
+- Repository behavior must be validated against containerized DB.
+- Controller tests must verify status, payload shape, and auth/error behavior.
+- Use realistic fixtures/factories instead of brittle hardcoded data.
+
+## 4) Database Integration Testing
+- Use Testcontainers with database matching production profile whenever possible.
+- Validate migrations, constraints, transaction behavior, and query correctness.
+- Explain why containerized DB tests are more reliable than pure in-memory substitutes.
+
+## 5) API Testing
+- Validate:
+  - status codes
+  - response schema
+  - error responses
+  - authentication/authorization
+- Use RestAssured for contract-level and scenario-level assertions.
+
+## 6) Frontend Testing (React + Next.js)
+- Cover:
+  - unit tests
+  - component tests
+  - integration tests
+  - e2e tests
+- Preferred tools:
+  - Jest
+  - React Testing Library
+  - MSW
+  - Playwright or Cypress
+
+## 7) Frontend Rules
+- Component tests verify render, interaction, and accessibility expectations.
+- Form tests verify validation, submission, and error states.
+- Use MSW for isolated API behavior without brittle network coupling.
+
+## 8) End-to-End Tests
+- Validate critical user journeys (for example login -> create transaction -> verify outcome).
+- Keep e2e suite focused on high-value paths.
+- Avoid duplicating all unit/integration coverage in e2e layer.
+
+## 9) Test Data Strategy
+- Use factories, fixtures, and seed scripts.
+- Avoid implicit coupling to hardcoded brittle records.
+- Keep test data deterministic and scenario-focused.
+
+## 10) CI/CD Testing Integration
+- Pipeline sequence should include:
+  - build
+  - unit tests
+  - integration tests
+  - e2e tests
+- Enforce failure gates: block deploy on failed mandatory stages.
+
+## 11) Coverage Guidance
+- Recommend directional thresholds:
+  - backend service coverage > 80%
+  - frontend component coverage > 70%
+- Clarify that meaningful coverage and behavior confidence are more important than 100% raw numbers.
+
+## 12) Flaky Test Prevention
+- Avoid time-based assertions.
+- Avoid uncontrolled external network dependency.
+- Use deterministic test data and explicit waiting strategies.
+
+## 13) Output Quality Rules
+- Provide practical tool recommendations by test layer.
+- Include concise code examples when requested.
+- Prefer actionable architecture decisions over generic testing advice.

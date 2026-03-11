@@ -1,0 +1,59 @@
+---
+description: Reusable frontend patterns for table, form, and modal components with React Hook Form, Zod, and TanStack Table.
+globs: "frontend/**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Frontend Reusable Patterns
+
+## Scope Boundary
+- This rule defines reusable UI/hook patterns only.
+- Keep architecture, data-fetch, and state governance in `20-frontend-nextjs-enterprise-core.mdc`.
+
+## Table Pattern
+- Keep reusable table primitives in `components/table`.
+- Prefer TanStack Table for complex data tables.
+- Separate responsibilities: columns, body, pagination, toolbar/filter.
+- Table capabilities should support:
+  - sorting
+  - pagination
+  - filtering
+  - column configuration
+
+## Form Pattern
+- Keep reusable form primitives in `components/form`.
+- Use React Hook Form for state and submit lifecycle.
+- Use Zod schemas for validation and parsing.
+- Keep form orchestration logic in hooks or dedicated form containers.
+
+## Modal Pattern
+- Keep reusable modal primitives in `components/modal`.
+- Compose modal sections (`Header`, `Body`, `Footer`) instead of large modal files.
+- Keep modal open/close orchestration in focused store/hook.
+- Use Framer Motion for modal and list transitions when UX benefits.
+
+## Styling Pattern
+- Use Tailwind utility classes.
+- Avoid inline styles and oversized CSS files.
+- Keep UI primitives consistent across features.
+- Keep shadcn/ui wrappers in `components/ui` for cross-feature reuse.
+- Use design tokens for spacing, colors, and typography.
+- Ensure components support dark mode.
+
+## Icons and Interaction Pattern
+- Use Lucide icons consistently across shared UI components.
+- Keep icon selection semantic and domain-consistent.
+
+## Shared Hooks Pattern
+- Standard reusable hooks:
+  - `useDebounce`
+  - `usePagination`
+  - `useModal`
+  - `useLocalStorage`
+- Keep hooks pure and composable to maximize reuse across features.
+- Store reusable hooks in `hooks/` (or `features/<feature>/hooks` when feature-specific).
+
+## Reusability and Testability Rules
+- Before creating a new component, check for existing reusable alternatives.
+- Prefer composition over duplication.
+- Keep side effects out of presentational UI components.

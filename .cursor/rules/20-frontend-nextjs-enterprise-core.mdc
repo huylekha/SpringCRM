@@ -1,0 +1,97 @@
+---
+description: Frontend core standards for scalable Next.js React applications using feature modules, TanStack Query, Zustand, and strict complexity limits.
+globs: "frontend/**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# Frontend Next.js Enterprise Core
+
+## Scope Boundary
+- This rule governs architecture, data/state flow, and performance baselines.
+- Keep concrete reusable UI patterns in `21-frontend-reusable-patterns.mdc`.
+
+## Technology Stack Baseline
+- Framework: Next.js
+- State: Zustand
+- Server data: TanStack Query
+- Forms: React Hook Form + Zod
+- UI system: shadcn/ui + TailwindCSS
+- Tables: TanStack Table
+- Animation: Framer Motion
+- Icons: Lucide
+
+## Architecture Baseline
+- Use feature-based architecture for business code.
+- Never organize business code by technical layers only.
+- Keep global `components/*` UI-only and reusable.
+- Recommended structure:
+  - `src/app`
+  - `src/components/{atoms,molecules,organisms,layouts}`
+  - `src/features/*`
+  - `src/hooks`, `src/services`, `src/store`, `src/lib`, `src/types`, `src/styles`, `src/utils`
+- Separate concerns strictly:
+  - UI rendering in components
+  - business logic in hooks/services
+  - API access in dedicated api/service layer
+
+## Feature Module Contract
+- Use domain folders such as `features/users`, `features/orders`, `features/payments`.
+- Each feature should include:
+  - `components`
+  - `hooks`
+  - `api`
+  - `schemas`
+  - `types`
+- Keep feature modules isolated; avoid cross-feature implicit coupling.
+
+## Component Guardrails
+- Ideal component size: 40-80 lines.
+- Target max: 120 lines; absolute max: 150 lines.
+- Enterprise hard cap: component file must stay below 300 lines.
+- File max: 200 lines.
+- Max JSX nesting depth: 4.
+- Max props per component: 6 (group props objects when needed).
+
+## Logic Placement
+- No direct API calls inside UI components.
+- Keep API access in `services`.
+- Extract orchestration/business logic into hooks.
+- If component logic exceeds 15 lines, create a custom hook.
+
+## API Layer Design
+- Keep transport concerns centralized (`services/api-client.ts`).
+- Keep feature API calls in `features/<feature>/api/*`.
+- API functions should throw normalized errors for query/mutation layers.
+- UI components should consume feature hooks (for example `useUsers`) instead of calling fetch clients directly.
+
+## State Rules
+- TanStack Query for all server state.
+- Never use `useEffect` for API fetching.
+- Zustand for global UI/app state only.
+- Never store server state inside Zustand stores.
+- Implement loading and error states for all API-driven views.
+- Handle query error state explicitly in UI flows.
+
+## Performance Rules
+- Prefer React Server Components where suitable.
+- Use dynamic imports for heavy client-only modules.
+- Use memoization (`React.memo`, `useMemo`, `useCallback`) when needed to reduce re-renders.
+- Use virtualized lists/tables for large datasets.
+- Keep query keys stable and caching strategy explicit.
+
+## Access Control Rules
+- UI must support permission-based rendering.
+- Use guard patterns (for example `RoleGuard`) to hide/disable unauthorized actions.
+
+## Import and Type Rules
+- Use absolute imports (for example `@/components/ui/button`).
+- Avoid deep relative imports for shared modules.
+- Keep API/domain types in `types/`.
+- Keep validation schemas in `schemas/`.
+
+## Code Quality
+- Prefer composition over monolithic components.
+- If code repeats more than twice, extract reusable component or hook.
+- Use descriptive names (`UserTable`, `UserFormModal`, `OrderCard`).
+- Keep UI components side-effect-light and testable.
+- Final outcome must be scalable, modular, typed, reusable, and maintainable.

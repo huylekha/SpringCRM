@@ -1,0 +1,82 @@
+---
+description: Template rule for generating centralized ErrorCode enum and GlobalExceptionHandler mappings with stable machine-readable API error codes.
+globs: "backend/**/*.java"
+alwaysApply: false
+---
+
+# Spring Error Code Template
+
+## Generation Goal
+- Generate consistent backend error handling artifacts:
+  - centralized `ErrorCode` enum/registry
+  - `ApiResponse` error contract helper
+  - `GlobalExceptionHandler` exception-to-code mapping
+
+## Required Artifacts
+- `common/exception/ErrorCode.java`
+- `common/response/ApiResponse.java` (or update existing wrapper)
+- `common/exception/GlobalExceptionHandler.java`
+- custom exceptions:
+  - `ResourceNotFoundException`
+  - `BusinessException`
+  - `ValidationException`
+
+## ErrorCode Enum Template
+- Each enum entry must include:
+  - machine code (`CATEGORY_XXXX`)
+  - default human message
+- Example:
+
+```java
+public enum ErrorCode {
+    USER_NOT_FOUND("USER_0001", "User not found"),
+    INVALID_EMAIL("USER_0002", "Invalid email"),
+    INVALID_TOKEN("AUTH_0001", "Invalid authentication token"),
+    SYSTEM_ERROR("SYSTEM_9999", "Unexpected system error");
+
+    private final String code;
+    private final String message;
+
+    ErrorCode(String code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    public String code() { return code; }
+    public String message() { return message; }
+}
+```
+
+## ApiResponse Error Template
+- Error response shape must include:
+  - `success: false`
+  - `error_code`
+  - `message`
+  - optional `details`
+- Example factory:
+
+```java
+public static <T> ApiResponse<T> error(ErrorCode errorCode) {
+    return new ApiResponse<>(false, null, errorCode.code(), errorCode.message(), null);
+}
+```
+
+## GlobalExceptionHandler Template
+- Use `@RestControllerAdvice` and map exception classes to `ErrorCode`.
+- Minimum mappings:
+  - `ResourceNotFoundException` -> `404`
+  - validation exceptions -> `400`
+  - auth exceptions -> `401/403`
+  - fallback -> `SYSTEM_9999` with `500`
+- Example logging format:
+
+```java
+log.error("error_code={} request_id={} user_id={} message={}",
+    errorCode.code(), requestId, userId, ex.getMessage(), ex);
+```
+
+## Template Safety Rules
+- Never return raw stack trace to client.
+- Never return error without `error_code`.
+- Never modify existing released error codes.
+- Add new error scenario by adding a new unique code only.

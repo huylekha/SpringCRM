@@ -1,0 +1,150 @@
+---
+description: On-demand 100-rule enterprise React and Next.js audit checklist for large-scale frontend systems before go-live or major refactor.
+globs: "frontend/**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# React Enterprise Checklist (100 Rules Audit)
+
+Use this checklist for:
+- code review across teams
+- pre go-live architecture audit
+- large refactor validation
+- onboarding quality baseline
+
+## Stack Assumptions
+- TanStack Query
+- Zustand
+- React Hook Form
+- Zod
+- Next.js + React
+
+## 1) Architecture (15 rules)
+- Feature-based architecture is enforced.
+- Project is not organized only by technical layers.
+- `features/` folder exists and is actively used.
+- `hooks/`, `services/api`, `types/`, and `schemas/` are clearly present.
+- UI components are separated from business logic.
+- API layer is separated from view components.
+- No circular dependencies across feature modules.
+- Feature modules are independently maintainable.
+- Component files are kept below 300 lines.
+- Reusable primitives live in `components/ui`.
+- No duplicated component implementations.
+- Design system conventions are documented and used.
+- Module ownership boundaries are clear.
+- Import paths and alias strategy are consistent.
+- Architecture decisions support long-term scaling.
+
+## 2) Data Fetching (10 rules)
+- No direct API calls in UI components.
+- TanStack Query is used for server state.
+- Every query has a stable `queryKey`.
+- Retry behavior is explicit where appropriate.
+- Caching is configured intentionally.
+- Loading state is always handled.
+- Error state is always handled.
+- Empty state is always handled.
+- Duplicate fetches for same endpoint are avoided.
+- API logic is centralized in services/feature api modules.
+
+## 3) State Management (10 rules)
+- Server state is not stored in global store.
+- Zustand is used for global UI/app state only.
+- No duplicated state sources.
+- Prop drilling deeper than 3 levels is avoided.
+- Global stores remain small and domain-scoped.
+- Store state and actions are strongly typed.
+- Context usage is limited and intentional.
+- Stores are split by domain responsibility.
+- No hidden side effects inside stores.
+- State update flow is predictable and testable.
+
+## 4) Rendering and Performance (15 rules)
+- Massive tables/lists are not rendered unvirtualized.
+- Virtualization is used for very large datasets.
+- TanStack columns/data are memoized where needed.
+- `React.memo` is used for expensive render trees when beneficial.
+- `useMemo` is used for heavy calculations.
+- `useCallback` is used for unstable handlers in hot paths.
+- Inline callbacks in large list renders are minimized.
+- Small state changes do not trigger full-page rerenders.
+- Heavy components are lazy loaded/dynamically imported.
+- Code splitting strategy is enabled.
+- Bundle size budget is monitored.
+- Avoid importing entire libraries unnecessarily.
+- Duplicate data fetch paths are eliminated.
+- Layout rerender churn is controlled.
+- Suspense/loading skeleton strategy is consistent.
+
+## 5) Component Design (10 rules)
+- Components are reusable by design.
+- Heavy business logic is extracted from UI files.
+- Props are fully typed and explicit.
+- Components are pure when possible.
+- No hardcoded product text in reusable components.
+- No hardcoded style values that break design system.
+- UI building blocks are independent and composable.
+- Layout components are separated from feature widgets.
+- Modal primitives are reusable.
+- Table primitives are reusable.
+
+## 6) Forms (10 rules)
+- React Hook Form is used for complex forms.
+- Zod schemas drive validation.
+- Schemas are separated into dedicated files.
+- No per-input `useState` anti-pattern for large forms.
+- Error messages are clear and actionable.
+- Submit is disabled during pending requests.
+- Form reset behavior is explicit and correct.
+- Form logic duplication is avoided.
+- Input components are reusable.
+- Client and server validation contracts stay aligned.
+
+## 7) Tables and Lists (10 rules)
+- Reusable table component exists and is adopted.
+- TanStack Table is used for enterprise data grids.
+- Large dataset sorting is server-side.
+- Pagination is server-side for large datasets.
+- Search/filtering uses debounce.
+- Columns configuration supports dynamic needs.
+- Stable row keys are always used.
+- Loading state exists for table views.
+- Empty state exists for table views.
+- Error state exists for table views.
+
+## 8) Next.js Specific (10 rules)
+- Server Components are preferred when possible.
+- Client Components are used only when necessary.
+- Server-side fetching is used when appropriate.
+- Layouts avoid unnecessary rerenders on navigation.
+- Route structure remains clear and maintainable.
+- Layout logic is not duplicated.
+- Static generation is used where beneficial.
+- SEO metadata is configured consistently.
+- API fetching is not duplicated across many components.
+- Dynamic import is used for heavy feature widgets.
+
+## 9) Code Quality (10 rules)
+- TypeScript strict mode is enabled.
+- `any` usage is controlled and justified.
+- ESLint rules are active and enforced.
+- Formatting is standardized.
+- Absolute imports are used (for example `@/...`).
+- Error handling is complete and explicit.
+- Frontend error logging strategy is in place.
+- API URLs are not hardcoded.
+- Environment variables are documented and consistent.
+- Error Boundary is present for resilient UI shells.
+
+## Audit Scoring
+- Pass > 85 rules: enterprise-ready.
+- Pass 70-85 rules: production-acceptable with improvement plan.
+- Pass < 70 rules: refactor required before scale-up.
+
+## Critical Warning Signals
+- API calls inside view components.
+- Large tables rendered without pagination/virtualization.
+- Manual or duplicated validation logic.
+- Bloated global state and duplicated data sources.
+- Oversized bundles with poor loading performance.

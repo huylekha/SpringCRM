@@ -1,0 +1,29 @@
+---
+description: Service communication standards for OpenFeign synchronous calls and Kafka asynchronous event-driven integration.
+globs: "backend/**/*.{java,yml,yaml}"
+alwaysApply: false
+---
+
+# Backend Sync and Async Integration
+
+## Decision Rule: REST vs Kafka
+- Use OpenFeign for query and immediate-response command flows.
+- Use Kafka for domain events, side effects, and eventual consistency.
+- Do not force Kafka for request/response interactions.
+
+## OpenFeign Rules
+- Place clients under `infrastructure/client`.
+- Use client DTOs separate from internal domain entities.
+- Configure timeout, retry, circuit breaker, and fallback (Resilience4j).
+- Wrap downstream failures into stable domain error codes.
+
+## Kafka Rules
+- Event naming: `<Aggregate><Action>Event` (immutable payloads).
+- Topic naming: `crm.<aggregate>.<action>`.
+- Producer: enable idempotence, retries, and `acks=all`.
+- Consumer: use group IDs, idempotent handling, and DLQ for failures.
+
+## Outbox Rule (Critical Events)
+- Use transactional outbox for important domain events.
+- Persist domain write + outbox row in the same DB transaction.
+- Publish outbox events asynchronously via worker/relay process.

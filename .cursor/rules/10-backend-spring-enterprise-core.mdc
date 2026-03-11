@@ -1,0 +1,39 @@
+---
+description: Backend standards for Spring Boot microservices with clean layering, DTO contracts, QueryDSL, and enterprise module boundaries.
+globs: "backend/**/*.{java,xml,yml,yaml,sql}"
+alwaysApply: false
+---
+
+# Backend Spring Enterprise Core
+
+## Stack and Architecture
+- Java 21, Spring Boot 3, Spring Security, Spring Data JPA/Hibernate, QueryDSL.
+- Clean layering: Controller -> Service -> Repository/Query Repository.
+- Keep package/module structure domain-driven and consistent.
+
+## Layer Responsibilities
+- Controller: HTTP contract, validation, and response mapping.
+- Service: business workflow and transaction boundaries.
+- Repository: simple CRUD access only.
+- Query Repository: complex filters/search/projections via QueryDSL.
+
+## API Contract Rules
+- Never return JPA entities from controllers.
+- Use request/response DTOs for all public and internal APIs.
+- Use standardized response wrapper with `success`, `data`, `error_code`, `message`.
+- Add pagination and deterministic sorting for list endpoints.
+
+## Code Organization
+- Prefer domain-based modules (for example `customer`, `lead`, `opportunity`, `task`).
+- Keep shared backend primitives in `backend/shared-lib` only.
+- Keep integration adapters in `infrastructure/*` packages.
+- For deep architecture blueprinting, use:
+  - `spring-architecture.mdc`
+  - `spring-api-rules.mdc`
+  - `spring-error-handling.mdc`
+  - `spring-transaction-rules.mdc`
+
+## Reliability Rules
+- Use `@Valid` with Jakarta Validation at boundaries.
+- Use global exception handling (`@RestControllerAdvice`).
+- Keep `@Transactional` in service layer, not controller layer.

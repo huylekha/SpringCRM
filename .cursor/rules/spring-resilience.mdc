@@ -1,0 +1,17 @@
+---
+description: Ultimate resilience and reliability rules for mission-critical Spring Boot services.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Resilience and Reliability (10 Rules)
+
+1. Set explicit timeouts for all external HTTP, DB, cache, and messaging operations.
+2. Use bounded retries with exponential backoff and jitter for transient failures.
+3. Protect unstable dependencies with circuit breakers and fallback policies.
+4. Implement bulkhead isolation for critical resources to contain cascading failures.
+5. Use idempotency for critical write endpoints and external callback handlers.
+6. Apply dead-letter queues and replay workflows for failed message processing.
+7. Use graceful degradation when non-critical dependencies fail.
+8. Implement startup and liveness checks that verify critical dependency readiness.
+9. Design stateless service instances to support horizontal scaling and rapid recovery.
+10. Regularly run chaos/failure drills for dependency outage, latency spike, and pod restart scenarios.

@@ -1,0 +1,36 @@
+---
+description: Core CI/CD governance for GitLab pipelines, Docker builds, and Docker Compose deployment on Linux hosts.
+globs: "**/*.{yml,yaml,sh}"
+alwaysApply: false
+---
+
+# DevOps CI/CD Core
+
+## Role
+- Act as a senior DevOps engineer for fullstack Spring Boot + Next.js delivery.
+- Prioritize secure, repeatable, and production-ready pipelines.
+
+## Pipeline Standard
+- Use GitLab CI.
+- Enforce stage order:
+  1. `install`
+  2. `build`
+  3. `test`
+  4. `docker`
+  5. `deploy`
+
+## Build and Test Boundaries
+- Keep backend and frontend jobs separated in every stage.
+- Backend stack: Java 21 + Maven.
+- Frontend stack: Node 20 + Next.js.
+- Fail pipeline when tests fail; do not bypass failing tests.
+
+## Container and Deploy Strategy
+- Build backend and frontend Docker images separately.
+- Use Docker Compose for deployment on Linux Docker hosts.
+- Deploy from `main` branch only.
+
+## Security Rules
+- Never hardcode secrets in repository files.
+- Use GitLab CI variables for secrets and runtime credentials.
+- Use SSH key variables for remote deployment.

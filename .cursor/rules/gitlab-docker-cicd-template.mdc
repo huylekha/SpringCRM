@@ -1,0 +1,59 @@
+---
+description: Template rule to generate working GitLab CI, Dockerfiles, Docker Compose, and deploy script for local-to-server delivery.
+globs: "**/*.{yml,yaml,sh}"
+alwaysApply: false
+---
+
+# GitLab + Docker CI/CD Template
+
+## Repository Layout Template
+- `.gitlab-ci.yml`
+- `backend/Dockerfile`
+- `frontend/Dockerfile`
+- `docker/docker-compose.yml`
+- `scripts/deploy.sh`
+
+## GitLab CI Stages
+- `install`
+- `build`
+- `test`
+- `docker`
+- `deploy`
+
+## Required Pipeline Jobs
+- `install-backend`: `maven:3.9`, run `mvn dependency:resolve`.
+- `install-frontend`: `node:20`, run `npm install`.
+- `build-backend`: `maven:3.9`, run `mvn clean package -DskipTests`, publish jar artifact.
+- `build-frontend`: `node:20`, run `npm run build`.
+- `test-backend`: `maven:3.9`, run `mvn test`.
+- `test-frontend`: `node:20`, run `npm run test`.
+- `docker-build`: `docker:24` + `docker:dind`, build backend/frontend images.
+- `docker-push` (optional): push to `$CI_REGISTRY_IMAGE`.
+- `deploy`: run only on `main`, deploy via SSH and `docker compose`.
+
+## Deploy Script Template
+- `scripts/deploy.sh` should:
+  - pull latest images
+  - restart services with `docker compose up -d`
+- script must be idempotent and safe to rerun.
+
+## Docker Compose Template
+- Include at least:
+  - `backend`
+  - `frontend`
+  - database service (`mysql` by default, or Oracle externalized by environment/profile)
+  - optional `redis`
+- Keep service env values externalized through environment variables.
+
+## Required GitLab Variables
+- `SERVER_IP`
+- `SERVER_USER`
+- `SSH_PRIVATE_KEY`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+
+## Production Rules
+- Separate backend/frontend jobs in all relevant stages.
+- Use `docker:dind` for Docker build jobs.
+- Deploy from `main` branch only.
+- Keep secrets only in GitLab CI/CD variables.

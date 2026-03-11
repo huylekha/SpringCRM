@@ -1,0 +1,20 @@
+---
+description: Ultimate testing and CI/CD quality gate rules for Spring Boot production delivery.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Testing (5 Rules)
+
+1. All business logic in services and domain components must have unit tests.
+2. Integration tests must validate real database behavior for critical repositories and transactions.
+3. Critical business flows must have end-to-end tests covering success and failure paths.
+4. Enforce minimum line/branch coverage above 80 percent for backend modules.
+5. Tests must be deterministic, isolated, and runnable in CI without external manual dependencies.
+
+# Spring Boot Ultimate Production Rules - CI/CD (5 Rules)
+
+6. Block merges unless CI passes all mandatory quality gates.
+7. CI pipeline must include build, unit tests, integration tests, and static analysis.
+8. Fail pipeline on security scanning or quality gate violations above defined thresholds.
+9. Build immutable Docker images and deploy via versioned, traceable artifacts.
+10. Require progressive deployment checks (health, rollback trigger, and post-deploy verification).

@@ -1,0 +1,25 @@
+---
+description: Strict-lite delivery checklist for fast but safe implementation with minimal mandatory gates.
+alwaysApply: false
+---
+
+# Delivery Strict Lite
+
+## Pre-Check
+- Clarify objective and scope in one short block.
+- List impacted files/modules before editing.
+- State planned verification (lint/test/build) briefly.
+
+## Implementation
+- Keep changes focused and small.
+- Preserve architecture boundaries.
+- Do not introduce unrelated refactors.
+
+## Verification
+- Run lint checks for touched files.
+- Run the most relevant test command when feasible.
+- If tests are skipped, state why and what to run next.
+
+## Reporting
+- List changed files grouped by Backend/Frontend/DevOps.
+- Summarize what was verified and what remains.

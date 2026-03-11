@@ -1,0 +1,17 @@
+---
+description: Ultimate REST API rules for large-scale Spring Boot systems.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - API Design (10 Rules)
+
+1. Use resource-oriented URLs with nouns, not verbs.
+2. Follow HTTP semantics strictly for `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`.
+3. Version APIs explicitly (for example `/api/v1/...`) and maintain deprecation windows.
+4. Return consistent response envelopes for success and failure across all services.
+5. Use proper status codes (`200/201/204/400/401/403/404/409/422/500/503`) with stable meaning.
+6. Validate all request payloads at boundary with Bean Validation and reject invalid input early.
+7. Support pagination, sorting, and filtering for list endpoints by default.
+8. Keep API contracts stable; additive changes are preferred over breaking schema changes.
+9. Publish machine-readable API contracts (OpenAPI) and keep them synchronized with implementation.
+10. Enforce idempotency for retry-prone operations (payment, order submission, callbacks).

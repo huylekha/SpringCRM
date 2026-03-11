@@ -1,0 +1,17 @@
+---
+description: Ultimate security rules for Spring Boot enterprise and fintech workloads.
+alwaysApply: false
+---
+
+# Spring Boot Ultimate Production Rules - Security (10 Rules)
+
+1. Use strong password hashing with BCrypt/Argon2 and rotate policy parameters safely.
+2. Never log secrets, credentials, tokens, card data, or personally sensitive payload fields.
+3. Enforce authentication and authorization on all non-public endpoints.
+4. Use least-privilege RBAC/ABAC policies and deny-by-default security configuration.
+5. Validate and sanitize all inputs to reduce SQL injection, XSS, and deserialization risks.
+6. Use parameterized queries/ORM bindings exclusively; ban string-concatenated SQL.
+7. Store secrets in secure environment stores (vault/K8s secrets), never in source code.
+8. Enforce TLS in transit and encryption-at-rest policies for sensitive data.
+9. Implement rate limiting and abuse protection on authentication and critical transaction endpoints.
+10. Audit security-relevant actions (login, role change, payment action) with immutable logs.

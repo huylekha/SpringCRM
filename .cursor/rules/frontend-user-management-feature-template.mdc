@@ -1,0 +1,46 @@
+---
+description: On-demand template for generating an enterprise User Management Dashboard feature in Next.js with TanStack Query, Zustand, RHF, Zod, and reusable table/modal patterns.
+globs: "frontend/**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Frontend User Management Feature Template
+
+## Output Contract
+- When asked for architecture/design output, include:
+  - architecture explanation
+  - folder structure
+  - design patterns used
+  - concrete code examples
+
+## Feature Skeleton
+- `features/users/components/UserTable.tsx`
+- `features/users/components/UserFormModal.tsx`
+- `features/users/hooks/useUsers.ts`
+- `features/users/hooks/useUserModal.ts`
+- `features/users/api/getUsers.ts`
+- `features/users/api/createUser.ts`
+- `features/users/schemas/userSchema.ts`
+- `features/users/types/user.ts`
+
+## Required Stack Usage
+- Server state via TanStack Query hooks.
+- Global modal/session UI state via Zustand.
+- Forms via React Hook Form + Zod resolver.
+- Table via TanStack Table primitives.
+- UI base components from shadcn/ui and TailwindCSS.
+- Motion interactions via Framer Motion.
+- Icons from Lucide.
+
+## Example Integration Flow
+- Fetch users in `useUsers` with stable query key `["users"]`.
+- Render reusable `DataTable` with sorting/filtering/pagination.
+- Open `UserFormModal` from Zustand-backed modal state.
+- Validate and submit form with RHF + Zod.
+- On success, invalidate `["users"]` query and close modal.
+
+## Scalability Guardrails
+- Keep API logic in `features/users/api` or shared `services`.
+- Keep component files small and composable.
+- Avoid business logic in view components.
+- Keep type definitions feature-local unless truly shared.
