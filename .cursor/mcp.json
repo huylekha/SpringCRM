@@ -1,0 +1,144 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "D:/Azure/Repo/SpringCRM"
+      ]
+    },
+    "git": {
+      "command": "node",
+      "args": [
+        "devops/mcp/git-server.js"
+      ],
+      "env": {
+        "REPO_PATH": "D:/Azure/Repo/SpringCRM",
+        "GIT_READ_ONLY": "true"
+      }
+    },
+    "docker": {
+      "command": "node",
+      "args": [
+        "devops/mcp/docker-server.js"
+      ],
+      "env": {
+        "DOCKER_HOST": "npipe:////./pipe/docker_engine"
+      }
+    },
+    "http": {
+      "command": "node",
+      "args": [
+        "devops/mcp/http-server.js"
+      ],
+      "env": {
+        "HTTP_TIMEOUT_MS": "15000",
+        "HTTP_ALLOWLIST_HOSTS": "localhost,127.0.0.1,api.internal.company.com"
+      }
+    },
+    "mysql": {
+      "command": "node",
+      "args": [
+        "devops/mcp/mysql-server.js"
+      ],
+      "env": {
+        "MYSQL_URL": "${MYSQL_URL}",
+        "MYSQL_USER": "${MYSQL_USER}",
+        "MYSQL_PASSWORD": "${MYSQL_PASSWORD}",
+        "MYSQL_READ_ONLY": "true"
+      }
+    },
+    "redis": {
+      "command": "node",
+      "args": [
+        "devops/mcp/redis-server.js"
+      ],
+      "env": {
+        "REDIS_URL": "${REDIS_URL}",
+        "REDIS_READ_ONLY": "true"
+      }
+    },
+    "logs": {
+      "command": "node",
+      "args": [
+        "devops/mcp/logs-server.js"
+      ],
+      "env": {
+        "LOG_PROVIDER": "elastic",
+        "LOG_INDEX": "springcrm-*",
+        "LOG_DEFAULT_WINDOW_MIN": "30"
+      }
+    },
+    "openapi": {
+      "command": "node",
+      "args": [
+        "devops/mcp/openapi-server.js"
+      ],
+      "env": {
+        "OPENAPI_DIR": "D:/Azure/Repo/SpringCRM/docs/api"
+      }
+    },
+    "grpc": {
+      "command": "node",
+      "args": [
+        "devops/mcp/grpc-server.js"
+      ],
+      "env": {
+        "PROTO_DIR": "D:/Azure/Repo/SpringCRM/backend/proto"
+      }
+    },
+    "browser": {
+      "command": "node",
+      "args": [
+        "devops/mcp/browser-server.js"
+      ]
+    },
+    "playwright": {
+      "command": "node",
+      "args": [
+        "devops/mcp/playwright-server.js"
+      ],
+      "env": {
+        "PLAYWRIGHT_BASE_URL": "http://localhost:3000"
+      }
+    },
+    "devtools": {
+      "command": "node",
+      "args": [
+        "devops/mcp/devtools-server.js"
+      ]
+    },
+    "kubernetes": {
+      "command": "node",
+      "args": [
+        "devops/mcp/kubernetes-server.js"
+      ],
+      "env": {
+        "KUBECONFIG": "${KUBECONFIG}",
+        "K8S_NAMESPACE": "springcrm-prod"
+      }
+    },
+    "ci": {
+      "command": "node",
+      "args": [
+        "devops/mcp/ci-server.js"
+      ],
+      "env": {
+        "CI_PROVIDER": "gitlab",
+        "GITLAB_URL": "${GITLAB_URL}",
+        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+      }
+    },
+    "monitoring": {
+      "command": "node",
+      "args": [
+        "devops/mcp/monitoring-server.js"
+      ],
+      "env": {
+        "PROMETHEUS_URL": "${PROMETHEUS_URL}",
+        "GRAFANA_URL": "${GRAFANA_URL}"
+      }
+    }
+  }
+}

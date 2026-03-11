@@ -1,0 +1,74 @@
+---
+description: Ultimate backend engineering rules for Spring Boot Java 21 services using clean architecture, MySQL, Redis, Docker, and enterprise reliability controls.
+globs: "backend/**/*.{java,xml,yml,yaml,sql}"
+alwaysApply: false
+---
+
+# Ultimate Backend Enterprise Rules
+
+## Stack and Architecture Baseline
+- Stack: Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, MySQL, Redis, Docker.
+- Enforce clean architecture and domain boundaries.
+- Layer direction is strict: Controller -> Service -> Repository (and QueryRepository when needed).
+- Controller must not contain business logic, persistence logic, or transaction orchestration.
+- Service owns use-case logic and transaction boundary.
+- Repository owns data access only.
+
+## DTO and Domain Separation
+- Never expose JPA entities through API responses.
+- Use dedicated request/response DTOs for controller contracts.
+- Keep transport DTOs separate from domain model and persistence entities.
+- Map DTO <-> domain via dedicated mappers; avoid ad-hoc mapping in controllers.
+
+## Error Handling Rules
+- Use one global exception handler with `@RestControllerAdvice`.
+- Standardize API error payload with at least:
+  - `error_code`
+  - `message`
+  - `trace_id`
+  - `timestamp`
+- Never return stacktraces, SQL errors, or framework internals to clients.
+- Map all known business and validation exceptions to stable `error_code` values.
+- Unknown exceptions must map to generic internal error code with safe message.
+
+## Null Safety Rules
+- Validate all request DTOs at boundary with `@Valid` and bean validation.
+- Validate domain invariants before persistence.
+- Use `Optional<T>` only for method return values at lookup boundaries.
+- Do not use `Optional` for fields, DTO attributes, or JPA entities.
+- Do not return null collections; return empty collections.
+
+## Database Rules (MySQL)
+- Mandatory pagination for list/search endpoints.
+- Require deterministic sort order for paginated APIs.
+- Prevent N+1 by using fetch joins/entity graphs/projections where relevant.
+- Define index strategy for high-frequency WHERE, JOIN, ORDER BY paths.
+- Do not use unbounded full-table reads in request paths.
+- Keep migrations backward-compatible and safe for rolling deploys.
+
+## Redis Rules
+- Use explicit key naming convention with domain prefix.
+- Every cache key family must define TTL policy.
+- Invalidate cache on writes with deterministic strategy.
+- Do not cache sensitive payloads without masking/encryption requirements.
+- Guard against cache stampede for expensive recomputation flows.
+
+## Logging and Tracing Rules
+- Use structured JSON logging in non-local environments.
+- Propagate and log correlation/trace id across request lifecycle.
+- Include `service`, `endpoint`, `latency_ms`, and `error_code` in error logs.
+- Never log secrets, credentials, JWTs, or raw PII.
+
+## Security Rules
+- Validate and sanitize all external inputs.
+- Enforce authentication and authorization on protected endpoints.
+- Use JWT with issuer, audience, expiry, and signature validation.
+- Enforce rate limiting for auth, OTP, and expensive endpoints.
+- Disable or secure sensitive actuator endpoints in production.
+
+## Testing Rules
+- Unit tests are mandatory for service-layer business logic.
+- Integration tests are mandatory for database-critical flows.
+- Repository tests must verify query correctness and pagination behavior.
+- Validate API contract and error model for critical endpoints.
+- New bug fix must include a regression test reproducing the failure path.

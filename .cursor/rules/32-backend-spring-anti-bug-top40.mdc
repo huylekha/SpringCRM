@@ -1,0 +1,48 @@
+---
+description: Top 40 anti-bug rules to prevent common Spring Boot production incidents.
+globs: "backend/**/*.java"
+alwaysApply: false
+---
+
+# Spring Boot Anti-Bug Rules (Top 40)
+
+1. No business logic in controllers.
+2. No repository access from controllers.
+3. No entity exposure in API responses.
+4. Keep DTO validation at API boundary.
+5. Keep transaction boundary in service layer only.
+6. Never catch-and-ignore exceptions.
+7. Never leak stacktrace to API clients.
+8. Always return standardized `error_code`.
+9. Always include `trace_id` in error responses.
+10. Never use broad `Exception` for business flow control.
+11. Use optimistic locking for mutable aggregates.
+12. Avoid EAGER relationships by default.
+13. Prevent N+1 in list and detail query flows.
+14. Require pagination for all list endpoints.
+15. Enforce max page size.
+16. Ensure deterministic sorting in pagination.
+17. Add indexes for frequent filters and joins.
+18. Avoid `SELECT *` in native SQL.
+19. Use projections for read-heavy endpoints.
+20. Validate data invariants before save/update.
+21. Never trust client-supplied IDs without authorization check.
+22. Never deserialize untrusted polymorphic payloads blindly.
+23. Ensure idempotency for retry-prone write APIs.
+24. Apply rate limits to brute-force sensitive endpoints.
+25. Enforce JWT issuer/audience/expiry checks.
+26. Rotate JWT signing keys with migration strategy.
+27. Never log secrets, tokens, passwords, or full PII.
+28. Use structured logging with consistent fields.
+29. Propagate correlation id across async boundaries.
+30. Set explicit DB and Redis timeouts.
+31. Set explicit HTTP client timeouts and retries.
+32. Use circuit breaker for unstable external dependencies.
+33. Define Redis TTL for each cache namespace.
+34. Keep cache invalidation aligned with write transactions.
+35. Protect against cache stampede on hot keys.
+36. Add readiness and liveness checks.
+37. Add integration test for every critical repository query.
+38. Add contract tests for public APIs.
+39. Fail CI when tests or lint checks fail.
+40. Never deploy without rollback-ready artifact and script.

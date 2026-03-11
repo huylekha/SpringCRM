@@ -1,0 +1,58 @@
+---
+description: Top 50 React and Next.js anti-patterns that cause scalability and maintainability failures in enterprise frontend systems.
+globs: "frontend/**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# React Anti-Pattern Rules (Top 50)
+
+1. Putting server state in Zustand.
+2. Fetching data directly in components.
+3. Using `useEffect` for primary data fetching instead of query hooks.
+4. Missing loading/error/empty UI states.
+5. Large god components with mixed concerns.
+6. Components exceeding agreed complexity caps.
+7. Deep prop drilling across many levels.
+8. Unstable list keys (index key on dynamic data).
+9. Recreating heavy objects/functions in hot render paths.
+10. Overusing context providers that rerender huge trees.
+11. Hidden side effects in render functions.
+12. Mutating state directly.
+13. Ignoring hook dependency rules.
+14. Disabling lint rules without design justification.
+15. Duplicating API clients across features.
+16. Duplicating validation logic by copy-paste.
+17. Storing sensitive values in browser storage in plain text.
+18. Hardcoding role checks in many components.
+19. Missing route guards for privileged screens.
+20. Circular imports between features.
+21. Using `any` for API/domain types.
+22. Skipping runtime validation for external payloads.
+23. Not normalizing API error shapes for UI.
+24. Triggering broad cache invalidation unnecessarily.
+25. Using unstable or ambiguous query keys.
+26. No retry/backoff strategy for transient failures.
+27. Blocking main thread with heavy sync computations.
+28. Rendering huge lists without virtualization.
+29. Missing code splitting for heavy pages.
+30. Importing server-only libs in client bundle.
+31. Side effects at module top-level.
+32. Multiple ad-hoc modal and toast systems.
+33. CSS and token inconsistency across modules.
+34. Excessive wrapper div nesting without semantic value.
+35. Missing accessibility labels and keyboard support.
+36. Dialogs without focus management.
+37. Infinite polling without cancel or visibility handling.
+38. Optimistic updates without rollback behavior.
+39. Complex forms built only with ad-hoc `useState`.
+40. Unclear separation between UI state and domain state.
+41. Snapshot-only tests without behavior assertions.
+42. E2E-only confidence without unit/component tests.
+43. No regression tests for fixed frontend bugs.
+44. Unbounded page-level data loading.
+45. Hydration mismatch due to client-only assumptions.
+46. Layout shift from missing skeleton/placeholder sizing.
+47. Mixing transport DTO and UI view model without mapping.
+48. No route-level error boundaries.
+49. Silent promise failures in event handlers.
+50. Shipping without performance regression checks.

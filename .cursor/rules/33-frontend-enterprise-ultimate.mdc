@@ -1,0 +1,65 @@
+---
+description: Ultimate frontend architecture rules for large-scale React and Next.js codebases using TypeScript, Zustand, TanStack Query, RHF, Zod, Tailwind, and shadcn/ui.
+globs: "frontend/**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# Ultimate Frontend Enterprise Rules
+
+## Architecture and Module Boundaries
+- Use feature-based structure for business modules.
+- Required feature shape:
+  - `components`
+  - `hooks`
+  - `api`
+  - `types`
+  - `store`
+- Feature examples:
+  - `features/auth`
+  - `features/users`
+  - `features/orders`
+- Avoid cross-feature coupling through deep imports.
+- Expose stable feature public APIs via `index.ts`.
+
+## Component Rules
+- Follow atomic design for shared UI (`atoms`, `molecules`, `organisms`).
+- Keep presentational components focused on rendering.
+- Move orchestration/business logic into hooks.
+- Soft cap component size at 150 LOC; hard cap at 250 LOC.
+- If logic exceeds 15 lines or mixes multiple concerns, extract custom hooks.
+
+## State Management Rules
+- Use Zustand for global UI/app state only.
+- Use TanStack Query for server state and caching.
+- Do not duplicate server state into Zustand.
+- Use deterministic query key factories.
+- Handle loading/error/empty states for all server-driven screens.
+
+## Form and Validation Rules
+- Use React Hook Form for form state.
+- Use Zod schema validation for all non-trivial forms.
+- Keep form schemas close to feature domain.
+- Show user-friendly validation messages and preserve field-level errors.
+
+## Table and Data Grid Rules
+- Use TanStack Table for enterprise table behaviors.
+- Use virtualization for large datasets.
+- Keep sorting/filter/pagination state explicit and serializable.
+- Align frontend pagination/sorting params with backend API contract.
+
+## Performance Rules
+- Prevent unnecessary re-renders with memoization where needed.
+- Use code splitting and lazy loading for heavy views/components.
+- Avoid expensive inline calculations in render path.
+- Avoid unnecessary global state subscriptions.
+- Define bundle budget and monitor regressions in CI.
+
+## Design System Rules
+- Build reusable primitives with Tailwind and shadcn/ui.
+- Reuse shared components before creating feature-specific duplicates.
+- Keep theme tokens consistent and avoid hardcoded one-off values.
+
+## Quality and Testing Rules
+- Test hooks and critical components with RTL + Vitest.
+- Test mutation flows, optimistic updates, and error states.
+- Keep E2E smoke coverage for critical user journeys.

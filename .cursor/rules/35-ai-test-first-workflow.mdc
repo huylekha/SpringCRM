@@ -1,0 +1,41 @@
+---
+description: AI-driven test-first workflow for backend and frontend implementation with mandatory verification gates.
+globs: "**/*.{java,ts,tsx,js,jsx,yml,yaml}"
+alwaysApply: false
+---
+
+# AI Test-First Workflow
+
+## Mandatory Delivery Flow
+1. Read requirement and identify impacted modules/contracts.
+2. Generate test cases first (happy path, edge, failure, security).
+3. Generate unit tests first.
+4. Implement minimum code to pass tests.
+5. Run tests and static checks.
+6. Refactor safely while keeping tests green.
+
+## Backend Testing Stack
+- Unit tests: JUnit 5 + Mockito.
+- Integration tests: Testcontainers (MySQL/Redis where relevant).
+- Repository tests: query correctness, pagination, sorting, and mapping.
+- API behavior tests: contract alignment for critical endpoints.
+
+## Frontend Testing Stack
+- Unit/component tests: Vitest + React Testing Library.
+- API mocking: MSW.
+- E2E critical journeys: Playwright.
+- UI states must include loading, error, empty, and success scenarios.
+
+## CI Gate Policy
+- Block merge when lint or tests fail.
+- Block merge when business logic changes without corresponding tests.
+- Keep unit tests fast and deterministic.
+- Keep E2E focused on critical flows to control pipeline duration.
+
+## Prompt Behavior Contract
+- When asked to implement a feature:
+  - first produce test cases,
+  - then write tests,
+  - then write implementation,
+  - then run verification commands.
+- Do not skip tests unless user explicitly asks, and report residual risk.
