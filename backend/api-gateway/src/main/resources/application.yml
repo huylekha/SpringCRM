@@ -9,15 +9,21 @@ spring:
 
   cloud:
     gateway:
+      default-filters:
+        - StripPrefix=2
       routes:
         - id: auth-service
           uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
-            - Path=/auth/**, /users/**, /roles/**
+            - Path=/api/v1/auth/**, /api/v1/users/**, /api/v1/roles/**, /api/v1/claims/**, /api/v1/permissions/**
         - id: crm-service
           uri: ${CRM_SERVICE_URL:http://localhost:8082}
           predicates:
-            - Path=/crm/**
+            - Path=/api/v1/crm/**
+        - id: health
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/actuator/health
 
   data:
     redis:

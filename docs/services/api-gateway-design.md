@@ -74,12 +74,15 @@ It does not own business domain logic.
 
 ## 7. Error Contract
 
+Gateway errors follow the unified error envelope defined in [api/gateway-error-contract-v1.md](../api/gateway-error-contract-v1.md).
+
 Gateway-level error payload:
 
 ```json
 {
   "code": "GATEWAY_RATE_LIMITED",
   "message": "Too many requests. Please retry later.",
+  "details": [],
   "traceId": "trace-id",
   "timestamp": "2026-03-11T10:00:00Z"
 }
@@ -87,12 +90,15 @@ Gateway-level error payload:
 
 Common gateway codes:
 
-- `GATEWAY_UNAUTHORIZED`
-- `GATEWAY_FORBIDDEN`
-- `GATEWAY_RATE_LIMITED`
-- `GATEWAY_ROUTE_NOT_FOUND`
-- `GATEWAY_DOWNSTREAM_TIMEOUT`
-- `GATEWAY_DOWNSTREAM_UNAVAILABLE`
+- `GATEWAY_UNAUTHORIZED` (401)
+- `GATEWAY_FORBIDDEN` (403)
+- `GATEWAY_RATE_LIMITED` (429)
+- `GATEWAY_ROUTE_NOT_FOUND` (404)
+- `GATEWAY_DOWNSTREAM_TIMEOUT` (504)
+- `GATEWAY_DOWNSTREAM_UNAVAILABLE` (503)
+- `GATEWAY_BAD_GATEWAY` (502)
+
+Rate limit responses include headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`.
 
 ## 8. Configuration Segments
 

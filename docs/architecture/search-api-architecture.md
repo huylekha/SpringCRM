@@ -2,12 +2,25 @@
 
 ## 1. Goal
 
-Provide a unified, scalable search contract for CRM modules using QueryDSL with:
+Provide a unified, scalable search and listing contract for CRM modules with:
 
-- dynamic filters
+- GET list endpoints for simple filters via query parameters
+- POST search endpoints using QueryDSL for complex dynamic filters
 - configurable sorting
 - pageable responses
 - DTO projections only
+
+## 1.1 GET List vs POST Search Decision Rule
+
+| Use Case | Endpoint | Method |
+|---|---|---|
+| Simple listing with status/owner filter, pagination, column sort | `GET /crm/{resource}` | Query params: status, ownerUserId, page, size, sort |
+| Multi-field filter with operators (BETWEEN, IN, LIKE, range) | `POST /crm/{resource}/search` | JSON body with filter DSL |
+| Frontend table with basic column sort + pagination | GET list | Standard table view |
+| Dashboard/reporting filter panels with complex criteria | POST search | Multi-criteria query |
+
+GET list endpoints use Spring `Pageable` with `page`, `size`, and `sort` query parameters.
+POST search endpoints use the full filter DSL defined below.
 
 ## 2. Standard Search Request Contract
 
@@ -97,14 +110,28 @@ flowchart LR
 }
 ```
 
-## 7. Module-Specific Search Examples
+## 7. Module-Specific Field Whitelists
 
-- Customer search fields:
-  - `fullName`, `email`, `phone`, `status`, `ownerUserId`, `createdAt`.
-- Lead search fields:
-  - `title`, `status`, `priority`, `expectedCloseDate`, `ownerUserId`.
-- Opportunity search fields:
-  - `stage`, `amount`, `closeDate`, `ownerUserId`.
+### GET List Filter Parameters (query params)
+
+| Module | Available Filters |
+|---|---|
+| Customer | status, ownerUserId, source |
+| Lead | status, priority, ownerUserId |
+| Opportunity | stage, ownerUserId, customerId |
+| Activity | type, customerId, leadId, opportunityId |
+| Task | status, assigneeUserId, priority, customerId |
+| Note | customerId, leadId, opportunityId |
+
+### POST Search Filterable Fields (QueryDSL)
+
+- Customer: `fullName`, `email`, `phone`, `status`, `ownerUserId`, `source`, `companyName`, `createdAt`.
+- Lead: `title`, `status`, `priority`, `expectedCloseDate`, `ownerUserId`, `contactName`, `contactEmail`, `expectedValue`, `createdAt`.
+- Opportunity: `stage`, `amount`, `currency`, `closeDate`, `ownerUserId`, `customerId`, `title`, `createdAt`.
+- Activity: `type`, `customerId`, `leadId`, `opportunityId`, `subject`, `activityDate`, `createdAt`.
+- Task: `title`, `status`, `assigneeUserId`, `ownerUserId`, `priority`, `dueDate`, `customerId`, `leadId`, `opportunityId`, `createdAt`.
+- Note: `content`, `customerId`, `leadId`, `opportunityId`, `createdAt`, `createdBy`.
+- User: `username`, `email`, `fullName`, `status`, `createdAt`.
 
 ## 8. Security and Data Scope
 
@@ -130,4 +157,5 @@ Standard search errors:
 - `SEARCH_INVALID_SORT_FIELD`
 - `SEARCH_PAGE_SIZE_EXCEEDED`
 
-Error payload returns `code`, `message`, and `traceId`.
+Error payload follows the unified error envelope defined in [api/gateway-error-contract-v1.md](../api/gateway-error-contract-v1.md):
+`code`, `message`, `details`, `traceId`, `timestamp`.

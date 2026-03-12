@@ -1,0 +1,1835 @@
+openapi: 3.0.3
+info:
+  title: CRM Service API
+  description: CRM domain API for customer, lead, opportunity, activity, task, and note management.
+  version: 1.0.0
+  contact:
+    name: Platform Engineering Team
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development (via API Gateway)
+  - url: http://localhost:8082/api/v1
+    description: CRM service direct access
+
+tags:
+  - name: Customers
+    description: Customer lifecycle management
+  - name: Leads
+    description: Lead lifecycle and conversion
+  - name: Opportunities
+    description: Opportunity pipeline management
+  - name: Activities
+    description: Activity logging (append-only)
+  - name: Tasks
+    description: Task lifecycle management
+  - name: Notes
+    description: Note management
+
+paths:
+  # ──────────────────── CUSTOMER ────────────────────
+  /crm/customers:
+    post:
+      tags: [Customers]
+      summary: Create customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Customers]
+      summary: List customers with pagination
+      operationId: listCustomers
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, SUSPENDED]
+        - name: ownerUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated customer list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedCustomerResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/customers/search:
+    post:
+      tags: [Customers]
+      summary: Advanced customer search
+      operationId: searchCustomers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedCustomerResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer by ID
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Customers]
+      summary: Update customer
+      operationId: updateCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    delete:
+      tags: [Customers]
+      summary: Soft-delete customer
+      operationId: deleteCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Customer soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /crm/customers/{id}/status:
+    patch:
+      tags: [Customers]
+      summary: Update customer status
+      operationId: updateCustomerStatus
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  # ──────────────────── LEAD ────────────────────
+  /crm/leads:
+    post:
+      tags: [Leads]
+      summary: Create lead
+      operationId: createLead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+      responses:
+        '201':
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Leads]
+      summary: List leads with pagination
+      operationId: listLeads
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [NEW, QUALIFIED, PROPOSAL, CONVERTED, LOST]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: ownerUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated lead list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedLeadResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/leads/search:
+    post:
+      tags: [Leads]
+      summary: Advanced lead search
+      operationId: searchLeads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedLeadResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/leads/{id}:
+    get:
+      tags: [Leads]
+      summary: Get lead by ID
+      operationId: getLead
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Lead details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Leads]
+      summary: Update lead
+      operationId: updateLead
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLeadRequest'
+      responses:
+        '200':
+          description: Lead updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    delete:
+      tags: [Leads]
+      summary: Soft-delete lead
+      operationId: deleteLead
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Lead soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /crm/leads/{id}/qualify:
+    post:
+      tags: [Leads]
+      summary: Qualify lead (NEW -> QUALIFIED)
+      operationId: qualifyLead
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Lead qualified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadTransitionResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  /crm/leads/{id}/convert:
+    post:
+      tags: [Leads]
+      summary: Convert lead to customer + opportunity
+      operationId: convertLead
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertLeadRequest'
+      responses:
+        '200':
+          description: Lead converted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConvertLeadResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  # ──────────────────── OPPORTUNITY ────────────────────
+  /crm/opportunities:
+    post:
+      tags: [Opportunities]
+      summary: Create opportunity
+      operationId: createOpportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOpportunityRequest'
+      responses:
+        '201':
+          description: Opportunity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpportunityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Opportunities]
+      summary: List opportunities with pagination
+      operationId: listOpportunities
+      parameters:
+        - name: stage
+          in: query
+          schema:
+            type: string
+            enum: [DISCOVERY, VALIDATION, NEGOTIATION, WON, LOST]
+        - name: ownerUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated opportunity list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedOpportunityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/opportunities/search:
+    post:
+      tags: [Opportunities]
+      summary: Advanced opportunity search
+      operationId: searchOpportunities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedOpportunityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/opportunities/{id}:
+    get:
+      tags: [Opportunities]
+      summary: Get opportunity by ID
+      operationId: getOpportunity
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Opportunity details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpportunityDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Opportunities]
+      summary: Update opportunity
+      operationId: updateOpportunity
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOpportunityRequest'
+      responses:
+        '200':
+          description: Opportunity updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpportunityDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    delete:
+      tags: [Opportunities]
+      summary: Soft-delete opportunity
+      operationId: deleteOpportunity
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Opportunity soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /crm/opportunities/{id}/stage:
+    post:
+      tags: [Opportunities]
+      summary: Change opportunity stage
+      operationId: changeStage
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStageRequest'
+      responses:
+        '200':
+          description: Stage changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageChangeResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  # ──────────────────── ACTIVITY ────────────────────
+  /crm/activities:
+    post:
+      tags: [Activities]
+      summary: Create activity (append-only)
+      operationId: createActivity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActivityRequest'
+      responses:
+        '201':
+          description: Activity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Activities]
+      summary: List activities with pagination
+      operationId: listActivities
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [CALL, MEETING, EMAIL, DEMO]
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: leadId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: opportunityId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated activity list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedActivityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/activities/search:
+    post:
+      tags: [Activities]
+      summary: Advanced activity search
+      operationId: searchActivities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedActivityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/activities/{id}:
+    get:
+      tags: [Activities]
+      summary: Get activity by ID
+      operationId: getActivity
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Activity details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ──────────────────── TASK ────────────────────
+  /crm/tasks:
+    post:
+      tags: [Tasks]
+      summary: Create task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Tasks]
+      summary: List tasks with pagination
+      operationId: listTasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [TODO, IN_PROGRESS, DONE, CANCELLED]
+        - name: assigneeUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedTaskResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/tasks/search:
+    post:
+      tags: [Tasks]
+      summary: Advanced task search
+      operationId: searchTasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedTaskResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: Get task by ID
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Tasks]
+      summary: Update task
+      operationId: updateTask
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    delete:
+      tags: [Tasks]
+      summary: Soft-delete task
+      operationId: deleteTask
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Task soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /crm/tasks/{id}/status:
+    patch:
+      tags: [Tasks]
+      summary: Update task status
+      operationId: updateTaskStatus
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStatusUpdateRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusChangeResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+
+  # ──────────────────── NOTE ────────────────────
+  /crm/notes:
+    post:
+      tags: [Notes]
+      summary: Create note
+      operationId: createNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteRequest'
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleError'
+    get:
+      tags: [Notes]
+      summary: List notes with pagination
+      operationId: listNotes
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: leadId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: opportunityId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated note list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedNoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/notes/search:
+    post:
+      tags: [Notes]
+      summary: Advanced note search
+      operationId: searchNotes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedNoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /crm/notes/{id}:
+    get:
+      tags: [Notes]
+      summary: Get note by ID
+      operationId: getNote
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Note details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Notes]
+      summary: Update note
+      operationId: updateNote
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteRequest'
+      responses:
+        '200':
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags: [Notes]
+      summary: Soft-delete note
+      operationId: deleteNote
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Note soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+        example: createdAt,desc
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Duplicate resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BusinessRuleError:
+      description: Business rule violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ──── Shared ────
+    SearchRequest:
+      type: object
+      properties:
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFilter'
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+        page:
+          type: integer
+          default: 0
+        size:
+          type: integer
+          default: 20
+          maximum: 100
+
+    SearchFilter:
+      type: object
+      required: [field, operator, value]
+      properties:
+        field:
+          type: string
+        operator:
+          type: string
+          enum: [EQ, NE, IN, NOT_IN, LIKE, STARTS_WITH, ENDS_WITH, GT, GTE, LT, LTE, BETWEEN, IS_NULL, IS_NOT_NULL]
+        value:
+          description: Filter value (type depends on operator)
+
+    SearchSort:
+      type: object
+      required: [field, direction]
+      properties:
+        field:
+          type: string
+        direction:
+          type: string
+          enum: [ASC, DESC]
+
+    StatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [code, message, traceId, timestamp]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+        traceId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    AuditFields:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          format: uuid
+
+    # ──── Customer ────
+    CreateCustomerRequest:
+      type: object
+      required: [customerCode, fullName]
+      properties:
+        customerCode:
+          type: string
+          maxLength: 60
+        fullName:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 50
+        companyName:
+          type: string
+          maxLength: 200
+        source:
+          type: string
+          maxLength: 60
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED]
+          default: ACTIVE
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 50
+        companyName:
+          type: string
+          maxLength: 200
+        source:
+          type: string
+          maxLength: 60
+
+    CustomerResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerCode:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        companyName:
+          type: string
+        ownerUserId:
+          type: string
+          format: uuid
+        source:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    CustomerDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/CustomerResponse'
+        - type: object
+          properties:
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+              format: uuid
+
+    PagedCustomerResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    # ──── Lead ────
+    CreateLeadRequest:
+      type: object
+      required: [leadCode, title, priority]
+      properties:
+        leadCode:
+          type: string
+          maxLength: 60
+        customerId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        contactName:
+          type: string
+          maxLength: 150
+        contactEmail:
+          type: string
+          format: email
+          maxLength: 255
+        contactPhone:
+          type: string
+          maxLength: 50
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        expectedValue:
+          type: number
+          format: decimal
+          minimum: 0
+        expectedCloseDate:
+          type: string
+          format: date
+
+    UpdateLeadRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        contactName:
+          type: string
+          maxLength: 150
+        contactEmail:
+          type: string
+          format: email
+        contactPhone:
+          type: string
+          maxLength: 50
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        expectedValue:
+          type: number
+          format: decimal
+          minimum: 0
+        expectedCloseDate:
+          type: string
+          format: date
+
+    LeadResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leadCode:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        contactName:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        ownerUserId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        priority:
+          type: string
+        expectedValue:
+          type: number
+        expectedCloseDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    LeadDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/LeadResponse'
+        - type: object
+          properties:
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+              format: uuid
+
+    LeadTransitionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        qualifiedAt:
+          type: string
+          format: date-time
+        qualifiedBy:
+          type: string
+          format: uuid
+
+    ConvertLeadRequest:
+      type: object
+      required: [opportunityData]
+      properties:
+        createCustomer:
+          type: boolean
+          default: true
+        customerData:
+          type: object
+          properties:
+            fullName:
+              type: string
+              maxLength: 200
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+              maxLength: 50
+            companyName:
+              type: string
+              maxLength: 200
+        opportunityData:
+          type: object
+          required: [title, amount, currency]
+          properties:
+            title:
+              type: string
+              maxLength: 200
+            amount:
+              type: number
+              format: decimal
+              minimum: 0
+            currency:
+              type: string
+              maxLength: 3
+              default: USD
+            closeDate:
+              type: string
+              format: date
+
+    ConvertLeadResponse:
+      type: object
+      properties:
+        leadId:
+          type: string
+          format: uuid
+        leadStatus:
+          type: string
+          enum: [CONVERTED]
+        customerId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+        convertedAt:
+          type: string
+          format: date-time
+        convertedBy:
+          type: string
+          format: uuid
+
+    PagedLeadResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeadResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    # ──── Opportunity ────
+    CreateOpportunityRequest:
+      type: object
+      required: [title, amount, currency]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        currency:
+          type: string
+          maxLength: 3
+          default: USD
+        closeDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 2000
+
+    UpdateOpportunityRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        currency:
+          type: string
+          maxLength: 3
+        closeDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 2000
+
+    OpportunityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        ownerUserId:
+          type: string
+          format: uuid
+        stage:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        closeDate:
+          type: string
+          format: date
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    OpportunityDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/OpportunityResponse'
+        - type: object
+          properties:
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+              format: uuid
+
+    ChangeStageRequest:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [DISCOVERY, VALIDATION, NEGOTIATION, WON, LOST]
+        note:
+          type: string
+          maxLength: 500
+
+    StageChangeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        previousStage:
+          type: string
+        currentStage:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
+        changedBy:
+          type: string
+          format: uuid
+
+    PagedOpportunityResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpportunityResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    # ──── Activity ────
+    CreateActivityRequest:
+      type: object
+      required: [type, subject, activityDate]
+      properties:
+        type:
+          type: string
+          enum: [CALL, MEETING, EMAIL, DEMO]
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+        subject:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        activityDate:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          minimum: 0
+
+    ActivityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        description:
+          type: string
+        activityDate:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    PagedActivityResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    # ──── Task ────
+    CreateTaskRequest:
+      type: object
+      required: [title, assigneeUserId, dueDate, priority]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        assigneeUserId:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        assigneeUserId:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        assigneeUserId:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date
+        priority:
+          type: string
+        status:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    TaskDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/TaskResponse'
+        - type: object
+          properties:
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+              format: uuid
+
+    TaskStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE, CANCELLED]
+
+    TaskStatusChangeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        previousStatus:
+          type: string
+        currentStatus:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
+        changedBy:
+          type: string
+          format: uuid
+
+    PagedTaskResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    # ──── Note ────
+    CreateNoteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 5000
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+
+    UpdateNoteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 5000
+
+    NoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        opportunityId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          format: uuid
+
+    PagedNoteResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/NoteResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'

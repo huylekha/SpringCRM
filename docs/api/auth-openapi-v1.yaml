@@ -1,0 +1,1184 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: Identity, authentication, and RBAC management API for Enterprise CRM Platform.
+  version: 1.0.0
+  contact:
+    name: Platform Engineering Team
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development (via API Gateway)
+  - url: http://localhost:8081/api/v1
+    description: Auth service direct access
+
+tags:
+  - name: Authentication
+    description: Login, refresh, and logout operations
+  - name: Users
+    description: User lifecycle and role management
+  - name: Roles
+    description: Role CRUD and claim/permission assignment
+  - name: Claims
+    description: Claim management
+  - name: Permissions
+    description: Permission management
+
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user and issue token pair
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials or account locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate refresh token and issue new token pair
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Refresh token invalid, expired, or revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke refresh token
+      operationId: logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logout successful (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Bearer token invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    post:
+      tags: [Users]
+      summary: Create a new user
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate username or email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Users]
+      summary: List users with pagination
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StatusFilter'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUserResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/search:
+    post:
+      tags: [Users]
+      summary: Advanced user search with dynamic filters
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUserResponse'
+        '400':
+          description: Invalid filter or sort field
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Users]
+      summary: Update user profile
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/status:
+    patch:
+      tags: [Users]
+      summary: Update user status
+      operationId: updateUserStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/roles:
+    post:
+      tags: [Users]
+      summary: Assign roles to user
+      operationId: assignRoles
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRolesRequest'
+      responses:
+        '200':
+          description: Roles assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignRolesResponse'
+        '403':
+          description: Privilege escalation denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User or role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/roles/{roleId}:
+    delete:
+      tags: [Users]
+      summary: Remove role from user
+      operationId: removeRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Role removed
+        '404':
+          description: User or role mapping not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles:
+    post:
+      tags: [Roles]
+      summary: Create a new role
+      operationId: createRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate role code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Roles]
+      summary: List roles with pagination
+      operationId: listRoles
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated role list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedRoleResponse'
+
+  /roles/{id}:
+    get:
+      tags: [Roles]
+      summary: Get role with claims and permissions
+      operationId: getRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Role details with claims and permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDetailResponse'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Roles]
+      summary: Update role metadata
+      operationId: updateRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles/{id}/claims:
+    post:
+      tags: [Roles]
+      summary: Assign claims to role
+      operationId: assignClaims
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignClaimsRequest'
+      responses:
+        '200':
+          description: Claims assigned
+        '404':
+          description: Role or claim not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles/{id}/claims/{claimId}:
+    delete:
+      tags: [Roles]
+      summary: Remove claim from role
+      operationId: removeClaim
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: claimId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Claim removed
+        '404':
+          description: Role or claim mapping not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles/{id}/permissions:
+    post:
+      tags: [Roles]
+      summary: Assign permissions to role
+      operationId: assignPermissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignPermissionsRequest'
+      responses:
+        '200':
+          description: Permissions assigned
+        '404':
+          description: Role or permission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles/{id}/permissions/{permissionId}:
+    delete:
+      tags: [Roles]
+      summary: Remove permission from role
+      operationId: removePermission
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: permissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Permission removed
+        '404':
+          description: Role or permission mapping not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /claims:
+    post:
+      tags: [Claims]
+      summary: Create a new claim
+      operationId: createClaim
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClaimRequest'
+      responses:
+        '201':
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '409':
+          description: Duplicate claim code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Claims]
+      summary: List claims with pagination
+      operationId: listClaims
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated claim list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedClaimResponse'
+
+  /permissions:
+    post:
+      tags: [Permissions]
+      summary: Create a new permission
+      operationId: createPermission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermissionRequest'
+      responses:
+        '201':
+          description: Permission created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+        '409':
+          description: Duplicate permission code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Permissions]
+      summary: List permissions with pagination
+      operationId: listPermissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated permission list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedPermissionResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+        example: createdAt,desc
+    StatusFilter:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [ACTIVE, INACTIVE, LOCKED]
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 100
+        password:
+          type: string
+          minLength: 8
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access token TTL in seconds
+        tokenType:
+          type: string
+          example: Bearer
+        user:
+          $ref: '#/components/schemas/AuthUserSnapshot'
+
+    AuthUserSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+        claims:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+        tokenType:
+          type: string
+          example: Bearer
+
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    CreateUserRequest:
+      type: object
+      required: [username, email, password, fullName]
+      properties:
+        username:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+        fullName:
+          type: string
+          maxLength: 200
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          default: ACTIVE
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+          maxLength: 200
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    UserDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleSummary'
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          format: uuid
+
+    RoleSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roleCode:
+          type: string
+        roleName:
+          type: string
+
+    StatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    AssignRolesRequest:
+      type: object
+      required: [roleIds]
+      properties:
+        roleIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+
+    AssignRolesResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleSummary'
+        assignedAt:
+          type: string
+          format: date-time
+        assignedBy:
+          type: string
+          format: uuid
+
+    CreateRoleRequest:
+      type: object
+      required: [roleCode, roleName]
+      properties:
+        roleCode:
+          type: string
+          maxLength: 80
+        roleName:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 300
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        roleName:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 300
+
+    RoleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roleCode:
+          type: string
+        roleName:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+
+    RoleDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roleCode:
+          type: string
+        roleName:
+          type: string
+        description:
+          type: string
+        claims:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimResponse'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AssignClaimsRequest:
+      type: object
+      required: [claimIds]
+      properties:
+        claimIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+
+    AssignPermissionsRequest:
+      type: object
+      required: [permissionIds]
+      properties:
+        permissionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+
+    CreateClaimRequest:
+      type: object
+      required: [claimCode, claimName]
+      properties:
+        claimCode:
+          type: string
+          maxLength: 120
+        claimName:
+          type: string
+          maxLength: 150
+
+    ClaimResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        claimCode:
+          type: string
+        claimName:
+          type: string
+
+    CreatePermissionRequest:
+      type: object
+      required: [permissionCode, resourceName, actionName]
+      properties:
+        permissionCode:
+          type: string
+          maxLength: 150
+        resourceName:
+          type: string
+          maxLength: 80
+        actionName:
+          type: string
+          maxLength: 80
+
+    PermissionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        permissionCode:
+          type: string
+        resourceName:
+          type: string
+        actionName:
+          type: string
+
+    SearchRequest:
+      type: object
+      properties:
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFilter'
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+        page:
+          type: integer
+          default: 0
+        size:
+          type: integer
+          default: 20
+          maximum: 100
+
+    SearchFilter:
+      type: object
+      required: [field, operator, value]
+      properties:
+        field:
+          type: string
+        operator:
+          type: string
+          enum: [EQ, NE, IN, NOT_IN, LIKE, STARTS_WITH, ENDS_WITH, GT, GTE, LT, LTE, BETWEEN, IS_NULL, IS_NOT_NULL]
+        value:
+          description: Filter value (string, number, array, or null depending on operator)
+
+    SearchSort:
+      type: object
+      required: [field, direction]
+      properties:
+        field:
+          type: string
+        direction:
+          type: string
+          enum: [ASC, DESC]
+
+    PagedUserResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    PagedRoleResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    PagedClaimResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    PagedPermissionResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchSort'
+
+    ErrorResponse:
+      type: object
+      required: [code, message, traceId, timestamp]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code (AUTH_ prefix)
+        message:
+          type: string
+          description: Human-readable error description
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+          description: Field-level validation errors (for 400/422)
+        traceId:
+          type: string
+          description: Distributed trace correlation ID
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp in UTC
+
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string

@@ -37,6 +37,10 @@ This document is the master index and execution baseline for building a producti
 - `AD-008`: Audit (`created_at`, `created_by`, `updated_at`, `updated_by`) and soft delete (`deleted`, `deleted_at`) are mandatory.
 - `AD-009`: Observability is mandatory with Sentry and distributed tracing propagation.
 - `AD-010`: CI/CD requires quality gates before Docker push and deployment.
+- `AD-011`: List endpoints use `GET` with query parameters for simple filters; `POST /search` for complex QueryDSL filters.
+- `AD-012`: Error responses follow a unified envelope (`code`, `message`, `details`, `traceId`, `timestamp`) across all services.
+- `AD-013`: RBAC enforcement at service level with data-scope filtering (ALL/TEAM/OWN) per role.
+- `AD-014`: Soft-delete via `DELETE` returns 204; soft-deleted records excluded from GET/list/search.
 
 ## 4. Service Landscape
 
@@ -69,6 +73,10 @@ This document is the master index and execution baseline for building a producti
 | Local Compose | [devops/docker-compose-example.md](devops/docker-compose-example.md) | Full local stack compose reference |
 | CI/CD | [devops/cicd-pipeline-design.md](devops/cicd-pipeline-design.md) | Build-test-package-push-deploy pipeline design |
 | Roadmap | [roadmap/development-roadmap.md](roadmap/development-roadmap.md) | Delivery phases, dependencies, acceptance gates |
+| Feature Catalog | [api/feature-catalog-v1.md](api/feature-catalog-v1.md) | Module capabilities, business rules, edge cases, acceptance criteria, endpoint traceability |
+| Auth OpenAPI | [api/auth-openapi-v1.yaml](api/auth-openapi-v1.yaml) | OpenAPI 3.0 spec for auth-service endpoints and DTOs |
+| CRM OpenAPI | [api/crm-openapi-v1.yaml](api/crm-openapi-v1.yaml) | OpenAPI 3.0 spec for crm-service endpoints and DTOs |
+| Error Contract | [api/gateway-error-contract-v1.md](api/gateway-error-contract-v1.md) | Unified error envelope, error codes, HTTP status semantics |
 
 ## 6. Execution Sequence
 
@@ -120,6 +128,7 @@ Use this format for major design revisions:
 
 | Date | Decision ID | Change | Reason | Impacted Docs | Approved By |
 |---|---|---|---|---|---|
+| 2026-03-11 | AD-011..014 | Added GET list endpoints, unified error envelope, RBAC data-scope matrix, soft-delete convention | Standardize API contract for BE/FE/QA implementation readiness | crm-service-design.md, auth-service-design.md, rbac-model.md, feature-catalog-v1.md, auth-openapi-v1.yaml, crm-openapi-v1.yaml, gateway-error-contract-v1.md | SA/BA |
 | YYYY-MM-DD | AD-XXX | Description | Business/Technical reason | List of files | Role/Team |
 
 ## 11. Cursor Rules Governance Snapshot

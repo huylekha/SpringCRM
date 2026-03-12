@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Builder
@@ -18,5 +19,5 @@ public class ApiError {
     private final String traceId;
     @Builder.Default
     private final Instant timestamp = Instant.now();
-    private final Object details;
+    private final List<FieldError> details;
 }
