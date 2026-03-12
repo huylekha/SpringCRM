@@ -17,6 +17,8 @@ public class ApiError {
     private final String code;
     private final String message;
     private final String traceId;
+    private final String path;        // Request URI for debugging
+    private final String method;      // HTTP method (GET, POST, etc.)
     @Builder.Default
     private final Instant timestamp = Instant.now();
     private final List<FieldError> details;
