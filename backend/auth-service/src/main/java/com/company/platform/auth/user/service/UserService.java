@@ -13,6 +13,8 @@ import com.company.platform.shared.exception.DuplicateResourceException;
 import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.exception.ResourceNotFoundException;
 import com.company.platform.shared.response.PageResponse;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ public class UserService {
     private final AuthRoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermissionEvaluator permissionEvaluator;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
@@ -52,6 +55,13 @@ public class UserService {
                 .createdBy(permissionEvaluator.currentUserId())
                 .build();
         user = userRepository.save(user);
+        
+        // Track user registration
+        Counter.builder("user.registrations")
+            .tag("status", user.getStatus())
+            .register(meterRegistry)
+            .increment();
+            
         return toUserResponse(user);
     }
 
@@ -95,6 +105,13 @@ public class UserService {
         user.setStatus(newStatus);
         user.setUpdatedBy(permissionEvaluator.currentUserId());
         user = userRepository.save(user);
+        
+        // Track status changes
+        Counter.builder("user.status.changes")
+            .tag("new_status", newStatus)
+            .register(meterRegistry)
+            .increment();
+            
         return toUserResponse(user);
     }
 

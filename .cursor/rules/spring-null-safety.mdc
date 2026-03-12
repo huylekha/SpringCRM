@@ -1,8 +1,6 @@
 ---
-description: Ultimate null-safety rules to prevent runtime null failures in Spring Boot.
-alwaysApply: false
+alwaysApply: true
 ---
-
 # Spring Boot Ultimate Production Rules - Null Safety (10 Rules)
 
 1. Never return `null` from service or repository contracts where alternatives exist.

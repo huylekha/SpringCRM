@@ -10,6 +10,8 @@ import com.company.platform.auth.user.dto.response.UserResponse;
 import com.company.platform.auth.user.repository.AuthUserRepository;
 import com.company.platform.shared.exception.BusinessException;
 import com.company.platform.shared.exception.DuplicateResourceException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,12 +35,14 @@ class UserServiceTest {
     @Mock private AuthRoleRepository roleRepository;
     @Mock private PermissionEvaluator permissionEvaluator;
     private PasswordEncoder passwordEncoder;
+    private MeterRegistry meterRegistry;
     private UserService userService;
 
     @BeforeEach
     void setUp() {
         passwordEncoder = new BCryptPasswordEncoder();
-        userService = new UserService(userRepository, roleRepository, passwordEncoder, permissionEvaluator);
+        meterRegistry = new SimpleMeterRegistry();
+        userService = new UserService(userRepository, roleRepository, passwordEncoder, permissionEvaluator, meterRegistry);
     }
 
     @Test

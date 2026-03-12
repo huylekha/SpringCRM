@@ -10,6 +10,8 @@ import com.company.platform.auth.user.domain.AuthUser;
 import com.company.platform.auth.user.repository.AuthUserRepository;
 import com.company.platform.shared.exception.BusinessException;
 import com.company.platform.shared.exception.ErrorCode;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,6 +35,7 @@ public class AuthenticationService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
@@ -52,12 +55,26 @@ public class AuthenticationService {
                 user.setStatus("LOCKED");
             }
             userRepository.save(user);
+            
+            // Track failed login attempts
+            Counter.builder("auth.login.attempts")
+                .tag("status", "failed")
+                .tag("reason", "invalid_credentials")
+                .register(meterRegistry)
+                .increment();
+                
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED);
         }
 
         user.setFailedLoginAttempts(0);
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
+        
+        // Track successful login
+        Counter.builder("auth.login.attempts")
+            .tag("status", "success")
+            .register(meterRegistry)
+            .increment();
 
         List<String> roles = user.getRoles().stream()
                 .map(r -> r.getRoleCode()).toList();

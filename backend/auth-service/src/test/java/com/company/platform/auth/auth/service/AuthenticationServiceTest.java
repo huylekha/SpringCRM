@@ -12,6 +12,8 @@ import com.company.platform.auth.role.domain.AuthRole;
 import com.company.platform.auth.user.domain.AuthUser;
 import com.company.platform.auth.user.repository.AuthUserRepository;
 import com.company.platform.shared.exception.BusinessException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +38,7 @@ class AuthenticationServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     private JwtTokenProvider tokenProvider;
     private PasswordEncoder passwordEncoder;
+    private MeterRegistry meterRegistry;
     private AuthenticationService authenticationService;
 
     @BeforeEach
@@ -47,8 +50,9 @@ class AuthenticationServiceTest {
         props.setRefreshTokenExpiry(604800);
         tokenProvider = new JwtTokenProvider(props);
         passwordEncoder = new BCryptPasswordEncoder();
+        meterRegistry = new SimpleMeterRegistry();
         authenticationService = new AuthenticationService(
-                userRepository, refreshTokenRepository, tokenProvider, passwordEncoder);
+                userRepository, refreshTokenRepository, tokenProvider, passwordEncoder, meterRegistry);
     }
 
     @Test
