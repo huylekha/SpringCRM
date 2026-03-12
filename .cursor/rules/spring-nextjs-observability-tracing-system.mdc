@@ -1,0 +1,1024 @@
+# Ultimate Observability and Distributed Tracing System
+
+## System Overview
+
+Enterprise-grade observability system for Spring Boot and Next.js applications with distributed tracing, structured logging, and real-time monitoring.
+
+**Stack:**
+- Backend: Spring Boot, Java 21, OpenTelemetry, Logback
+- Frontend: React/Next.js, TypeScript, Axios
+- Observability: Prometheus, Grafana, OpenTelemetry Collector
+- Logging: Structured JSON with trace correlation
+
+---
+
+## 1. TRACE ID SYSTEM
+
+### Backend Trace ID Generation
+
+**Filter Implementation:**
+
+```java
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@Slf4j
+public class TraceIdFilter extends OncePerRequestFilter {
+    
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+    
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                    HttpServletResponse response, 
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String traceId = extractOrGenerateTraceId(request);
+        
+        // Add to MDC for logging
+        MDC.put(TRACE_ID_MDC_KEY, traceId);
+        
+        // Add to response header
+        response.addHeader(TRACE_ID_HEADER, traceId);
+        
+        // Store in request attribute for controller access
+        request.setAttribute(TRACE_ID_HEADER, traceId);
+        
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.clear();
+        }
+    }
+    
+    private String extractOrGenerateTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader(TRACE_ID_HEADER);
+        if (traceId == null || traceId.isEmpty()) {
+            traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        }
+        return traceId;
+    }
+}
+```
+
+**Trace ID Utility:**
+
+```java
+@Component
+public class TraceIdContext {
+    
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+    
+    public static String getCurrentTraceId() {
+        return MDC.get(TRACE_ID_MDC_KEY);
+    }
+    
+    public static void setTraceId(String traceId) {
+        MDC.put(TRACE_ID_MDC_KEY, traceId);
+    }
+    
+    public static void clear() {
+        MDC.remove(TRACE_ID_MDC_KEY);
+    }
+}
+```
+
+### Rules:
+- ✅ Every request MUST generate or accept trace_id
+- ✅ Trace ID length: 16 characters (lowercase hex)
+- ✅ Add to MDC immediately for logging context
+- ✅ Return in response header and body
+- ✅ Never expose internal implementation details
+
+---
+
+## 2. STRUCTURED LOGGING
+
+### Logback Configuration
+
+**logback-spring.xml:**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name"/>
+    
+    <!-- JSON Encoder for structured logging -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestPath</includeMdcKeyName>
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <level>level</level>
+                <levelValue>[ignore]</levelValue>
+                <message>message</message>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+        </encoder>
+    </appender>
+    
+    <root level="INFO">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </root>
+    
+    <logger name="com.company.platform" level="DEBUG"/>
+    <logger name="org.springframework.web" level="INFO"/>
+</configuration>
+```
+
+**pom.xml dependency:**
+
+```xml
+<dependency>
+    <groupId>net.logstash.logback</groupId>
+    <artifactId>logstash-logback-encoder</artifactId>
+    <version>7.4</version>
+</dependency>
+```
+
+### Enhanced GlobalExceptionHandler with Structured Logging
+
+```java
+@Slf4j
+@RestControllerAdvice
+@RequiredArgsConstructor
+public class GlobalExceptionHandler {
+
+    private final MessageService messageService;
+    
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiError> handleBusiness(BusinessException ex,
+                                                    HttpServletRequest request) {
+        String traceId = TraceIdContext.getCurrentTraceId();
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+        
+        // Structured logging with all context
+        log.warn("Business exception occurred: traceId={}, errorCode={}, path={}, method={}, userId={}, locale={}", 
+            traceId, 
+            ex.getErrorCode() != null ? ex.getErrorCode().getCode() : "UNKNOWN",
+            path,
+            method,
+            SecurityContextHolder.getContext().getAuthentication() != null 
+                ? SecurityContextHolder.getContext().getAuthentication().getName() 
+                : "anonymous",
+            LocaleContextHolder.getLocale()
+        );
+        
+        String translatedMessage = ex.getErrorCode() != null 
+            ? messageService.getMessage(ex.getErrorCode())
+            : ex.getMessage();
+        
+        ApiError error = ApiError.builder()
+                .code(ex.getErrorCode() != null ? ex.getErrorCode().getCode() : "UNKNOWN")
+                .message(translatedMessage)
+                .traceId(traceId)
+                .path(path)
+                .timestamp(Instant.now())
+                .build();
+                
+        return ResponseEntity.status(ex.getStatus()).body(error);
+    }
+    
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGeneric(Exception ex,
+                                                   HttpServletRequest request) {
+        String traceId = TraceIdContext.getCurrentTraceId();
+        String path = request.getRequestURI();
+        
+        // Critical error with full stack trace
+        log.error("Unexpected error occurred: traceId={}, path={}, errorType={}", 
+            traceId, path, ex.getClass().getName(), ex);
+        
+        String translatedMessage = messageService.getMessage(ErrorCode.SYSTEM_INTERNAL_ERROR);
+        
+        ApiError error = ApiError.builder()
+                .code(ErrorCode.SYSTEM_INTERNAL_ERROR.getCode())
+                .message(translatedMessage)
+                .traceId(traceId)
+                .path(path)
+                .timestamp(Instant.now())
+                .build();
+                
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+}
+```
+
+### Enhanced ApiError Response
+
+```java
+@Getter
+@Builder
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ApiError {
+    private final String code;
+    private final String message;
+    private final String traceId;
+    private final String path;
+    @Builder.Default
+    private final Instant timestamp = Instant.now();
+    private final List<FieldError> details;
+}
+```
+
+### Logging Rules:
+- ✅ ALWAYS use structured JSON logging in production
+- ✅ ALWAYS include traceId in logs
+- ✅ Include userId for authenticated requests
+- ✅ Include requestPath, method, errorCode
+- ✅ Use appropriate log levels: ERROR for system failures, WARN for business exceptions
+- ✅ Never log sensitive data (passwords, tokens, PII)
+- ✅ Use parameterized logging (SLF4J placeholders)
+
+---
+
+## 3. OPENTELEMETRY INTEGRATION
+
+### Dependencies
+
+```xml
+<dependency>
+    <groupId>io.opentelemetry.instrumentation</groupId>
+    <artifactId>opentelemetry-spring-boot-starter</artifactId>
+    <version>1.32.0-alpha</version>
+</dependency>
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-exporter-otlp</artifactId>
+</dependency>
+```
+
+### OpenTelemetry Configuration
+
+```java
+@Configuration
+public class OpenTelemetryConfig {
+    
+    @Value("${spring.application.name}")
+    private String serviceName;
+    
+    @Value("${otel.exporter.otlp.endpoint:http://localhost:4317}")
+    private String otlpEndpoint;
+    
+    @Bean
+    public OpenTelemetry openTelemetry() {
+        Resource resource = Resource.getDefault()
+            .merge(Resource.create(Attributes.of(
+                ResourceAttributes.SERVICE_NAME, serviceName,
+                ResourceAttributes.SERVICE_VERSION, "1.0.0"
+            )));
+        
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(BatchSpanProcessor.builder(
+                OtlpGrpcSpanExporter.builder()
+                    .setEndpoint(otlpEndpoint)
+                    .build()
+            ).build())
+            .setResource(resource)
+            .build();
+        
+        return OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .setPropagators(ContextPropagators.create(
+                W3CTraceContextPropagator.getInstance()
+            ))
+            .buildAndRegisterGlobal();
+    }
+}
+```
+
+### Custom Span Annotation
+
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Traced {
+    String value() default "";
+    String[] tags() default {};
+}
+```
+
+### Aspect for Custom Spans
+
+```java
+@Aspect
+@Component
+@Slf4j
+@RequiredArgsConstructor
+public class TracingAspect {
+    
+    private final Tracer tracer;
+    
+    @Around("@annotation(traced)")
+    public Object traceMethod(ProceedingJoinPoint joinPoint, Traced traced) throws Throwable {
+        String spanName = traced.value().isEmpty() 
+            ? joinPoint.getSignature().getName() 
+            : traced.value();
+        
+        Span span = tracer.spanBuilder(spanName)
+            .setSpanKind(SpanKind.INTERNAL)
+            .startSpan();
+        
+        try (Scope scope = span.makeCurrent()) {
+            // Add trace ID to MDC
+            String traceId = span.getSpanContext().getTraceId();
+            MDC.put("traceId", traceId);
+            
+            // Add custom tags
+            for (String tag : traced.tags()) {
+                span.setAttribute(tag, joinPoint.getArgs().toString());
+            }
+            
+            Object result = joinPoint.proceed();
+            span.setStatus(StatusCode.OK);
+            return result;
+            
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+            MDC.remove("traceId");
+        }
+    }
+}
+```
+
+### Service Layer with Tracing
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class UserService {
+    
+    private final UserRepository userRepository;
+    private final Tracer tracer;
+    
+    @Traced(value = "findUserById", tags = {"userId"})
+    public UserResponse getUser(String id) {
+        Span span = Span.current();
+        span.setAttribute("user.id", id);
+        span.setAttribute("service", "user-service");
+        
+        log.info("Fetching user: userId={}, traceId={}", id, TraceIdContext.getCurrentTraceId());
+        
+        AuthUser user = userRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> {
+                    span.addEvent("User not found");
+                    span.setStatus(StatusCode.ERROR, "User not found");
+                    return new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND);
+                });
+        
+        span.addEvent("User found successfully");
+        return toUserResponse(user);
+    }
+}
+```
+
+### OpenTelemetry Rules:
+- ✅ Create spans for all service methods
+- ✅ Add business context to spans (userId, orderId, etc.)
+- ✅ Record exceptions in spans
+- ✅ Use semantic conventions for span names
+- ✅ Add events for important business milestones
+- ✅ Propagate trace context across service boundaries
+
+---
+
+## 4. FRONTEND TRACING
+
+### Axios Interceptor with Trace ID
+
+```typescript
+// src/lib/axios-config.ts
+import axios, { AxiosError, AxiosResponse } from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+
+const TRACE_ID_HEADER = 'X-Trace-Id';
+const TRACE_ID_STORAGE_KEY = 'app-trace-id';
+
+// Generate or retrieve trace ID
+function getOrCreateTraceId(): string {
+  let traceId = sessionStorage.getItem(TRACE_ID_STORAGE_KEY);
+  if (!traceId) {
+    traceId = uuidv4().replace(/-/g, '').substring(0, 16);
+    sessionStorage.setItem(TRACE_ID_STORAGE_KEY, traceId);
+  }
+  return traceId;
+}
+
+// Request interceptor - add trace ID
+axios.interceptors.request.use(
+  (config) => {
+    const traceId = getOrCreateTraceId();
+    config.headers[TRACE_ID_HEADER] = traceId;
+    
+    // Add to console for debugging
+    console.debug(`[${traceId}] ${config.method?.toUpperCase()} ${config.url}`);
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - capture trace ID from response
+axios.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const traceId = response.headers[TRACE_ID_HEADER.toLowerCase()];
+    if (traceId) {
+      sessionStorage.setItem(TRACE_ID_STORAGE_KEY, traceId);
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    const traceId = error.response?.headers[TRACE_ID_HEADER.toLowerCase()];
+    if (traceId) {
+      // Attach trace ID to error for logging
+      (error as any).traceId = traceId;
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axios;
+```
+
+### Enhanced Error Display with Trace ID
+
+```typescript
+// src/components/ErrorBoundary.tsx
+'use client';
+
+import { Component, ReactNode } from 'react';
+import { AlertTriangle, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+  traceId?: string;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    const traceId = sessionStorage.getItem('app-trace-id') || 'unknown';
+    return {
+      hasError: true,
+      error,
+      traceId,
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    const traceId = this.state.traceId;
+    console.error(`[${traceId}] Error caught by boundary:`, error, errorInfo);
+    
+    // Send to monitoring service
+    if (typeof window !== 'undefined') {
+      fetch('/api/errors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          traceId,
+          error: error.message,
+          stack: error.stack,
+          componentStack: errorInfo.componentStack,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(console.error);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <ErrorDisplay error={this.state.error!} traceId={this.state.traceId!} />;
+    }
+
+    return this.props.children;
+  }
+}
+
+function ErrorDisplay({ error, traceId }: { error: Error; traceId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyTraceId = () => {
+    navigator.clipboard.writeText(traceId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+          <h2 className="text-xl font-bold text-gray-900">Something went wrong</h2>
+        </div>
+        
+        <p className="text-gray-600 mb-4">
+          We're sorry, but something unexpected happened. Our team has been notified.
+        </p>
+        
+        <div className="bg-gray-50 rounded p-3 mb-4">
+          <div className="text-sm text-gray-500 mb-1">Error Code</div>
+          <div className="font-mono text-sm text-gray-900">{error.message}</div>
+        </div>
+        
+        <div className="bg-blue-50 rounded p-3 mb-4">
+          <div className="text-sm text-blue-600 mb-2 font-medium">Trace ID (for support)</div>
+          <div className="flex items-center justify-between">
+            <code className="text-sm font-mono text-blue-900">{traceId}</code>
+            <button
+              onClick={copyTraceId}
+              className="ml-2 p-1 hover:bg-blue-100 rounded transition-colors"
+              title="Copy trace ID"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Copy className="w-4 h-4 text-blue-600" />
+              )}
+            </button>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
+        >
+          Reload Page
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+### Frontend Trace Rules:
+- ✅ Generate trace ID on app initialization
+- ✅ Store in sessionStorage for persistence
+- ✅ Send with every API request
+- ✅ Display in error UI for support
+- ✅ Log to console in development
+- ✅ Send to error monitoring service
+
+---
+
+## 5. PROMETHEUS METRICS
+
+### Dependencies
+
+```xml
+<dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+### Application Properties
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+```
+
+### Custom Metrics Configuration
+
+```java
+@Configuration
+public class MetricsConfig {
+    
+    @Bean
+    public MeterRegistryCustomizer<MeterRegistry> metricsCommonTags(
+            @Value("${spring.application.name}") String serviceName) {
+        return registry -> registry.config().commonTags(
+            "service", serviceName,
+            "environment", System.getenv().getOrDefault("SPRING_PROFILES_ACTIVE", "dev")
+        );
+    }
+    
+    @Bean
+    public TimedAspect timedAspect(MeterRegistry registry) {
+        return new TimedAspect(registry);
+    }
+}
+```
+
+### Metrics Interceptor
+
+```java
+@Component
+@RequiredArgsConstructor
+public class MetricsInterceptor implements HandlerInterceptor {
+    
+    private final MeterRegistry meterRegistry;
+    private static final String START_TIME_ATTRIBUTE = "startTime";
+    
+    @Override
+    public boolean preHandle(HttpServletRequest request, 
+                            HttpServletResponse response, 
+                            Object handler) {
+        request.setAttribute(START_TIME_ATTRIBUTE, System.currentTimeMillis());
+        return true;
+    }
+    
+    @Override
+    public void afterCompletion(HttpServletRequest request, 
+                               HttpServletResponse response, 
+                               Object handler, 
+                               Exception ex) {
+        Long startTime = (Long) request.getAttribute(START_TIME_ATTRIBUTE);
+        if (startTime != null) {
+            long duration = System.currentTimeMillis() - startTime;
+            
+            String path = request.getRequestURI();
+            String method = request.getMethod();
+            int status = response.getStatus();
+            
+            // Record request duration
+            Timer.builder("http.server.requests")
+                .tag("method", method)
+                .tag("uri", path)
+                .tag("status", String.valueOf(status))
+                .tag("outcome", getOutcome(status))
+                .register(meterRegistry)
+                .record(duration, TimeUnit.MILLISECONDS);
+            
+            // Count errors
+            if (status >= 400) {
+                Counter.builder("http.server.errors")
+                    .tag("method", method)
+                    .tag("uri", path)
+                    .tag("status", String.valueOf(status))
+                    .register(meterRegistry)
+                    .increment();
+            }
+        }
+    }
+    
+    private String getOutcome(int status) {
+        if (status >= 200 && status < 300) return "SUCCESS";
+        if (status >= 400 && status < 500) return "CLIENT_ERROR";
+        if (status >= 500) return "SERVER_ERROR";
+        return "UNKNOWN";
+    }
+}
+```
+
+### Service-Level Metrics
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    
+    private final UserRepository userRepository;
+    private final MeterRegistry meterRegistry;
+    
+    @Timed(value = "user.service.getUser", description = "Time to get user by ID")
+    public UserResponse getUser(String id) {
+        Counter.builder("user.service.getUser.calls")
+            .tag("method", "getUser")
+            .register(meterRegistry)
+            .increment();
+        
+        try {
+            AuthUser user = userRepository.findByIdAndDeletedFalse(id)
+                    .orElseThrow(() -> {
+                        Counter.builder("user.service.getUser.notfound")
+                            .register(meterRegistry)
+                            .increment();
+                        return new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND);
+                    });
+            
+            return toUserResponse(user);
+        } catch (Exception e) {
+            Counter.builder("user.service.getUser.errors")
+                .tag("error", e.getClass().getSimpleName())
+                .register(meterRegistry)
+                .increment();
+            throw e;
+        }
+    }
+}
+```
+
+### Metrics Rules:
+- ✅ Expose /actuator/prometheus endpoint
+- ✅ Track request duration, error rate, throughput
+- ✅ Add business metrics (user registrations, orders, etc.)
+- ✅ Tag metrics with service name, environment
+- ✅ Use consistent naming conventions
+- ✅ Don't track high-cardinality tags (user IDs, trace IDs)
+
+---
+
+## 6. GRAFANA DASHBOARDS
+
+### Dashboard JSON Template
+
+```json
+{
+  "dashboard": {
+    "title": "Spring Boot Application Observability",
+    "panels": [
+      {
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [{
+          "expr": "sum(rate(http_server_requests_total{service=\"user-service\"}[5m])) by (uri)"
+        }]
+      },
+      {
+        "title": "Error Rate by Error Code",
+        "type": "graph",
+        "targets": [{
+          "expr": "sum(rate(http_server_errors_total{service=\"user-service\"}[5m])) by (status)"
+        }]
+      },
+      {
+        "title": "95th Percentile Latency",
+        "type": "graph",
+        "targets": [{
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, uri))"
+        }]
+      },
+      {
+        "title": "Database Query Time",
+        "type": "graph",
+        "targets": [{
+          "expr": "histogram_quantile(0.95, sum(rate(spring_data_repository_invocations_seconds_bucket[5m])) by (le, method))"
+        }]
+      }
+    ]
+  }
+}
+```
+
+### Key Dashboards:
+
+1. **API Performance Dashboard**
+   - Request rate (requests/sec)
+   - Average response time
+   - 95th/99th percentile latency
+   - Error rate by endpoint
+
+2. **Business Metrics Dashboard**
+   - User registrations per hour
+   - Orders created per minute
+   - Payment success rate
+   - Active users
+
+3. **System Health Dashboard**
+   - JVM memory usage
+   - CPU utilization
+   - Thread pool status
+   - Database connection pool
+
+4. **Error Analysis Dashboard**
+   - Errors by error_code
+   - Error rate trend
+   - Top failing endpoints
+   - Error distribution by service
+
+---
+
+## 7. ALERTING RULES
+
+### Prometheus Alert Rules
+
+```yaml
+# prometheus-alerts.yml
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: sum(rate(http_server_errors_total[5m])) by (service) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "{{ $labels.service }} has error rate above 5% for 5 minutes"
+      
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, service)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "{{ $labels.service }} 95th percentile latency > 1s"
+      
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="spring-boot-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute"
+      
+      # Database connection pool exhausted
+      - alert: DatabaseConnectionPoolExhausted
+        expr: hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool almost exhausted"
+          description: "Connection pool usage > 90% for 2 minutes"
+```
+
+---
+
+## 8. TESTING OBSERVABILITY
+
+### Trace ID Test
+
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class TraceIdPropagationTest {
+    
+    @Autowired
+    private TestRestTemplate restTemplate;
+    
+    @Test
+    void shouldPropagateTraceIdInResponse() {
+        // Given
+        String customTraceId = "test-trace-123";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Trace-Id", customTraceId);
+        
+        // When
+        ResponseEntity<ApiError> response = restTemplate.exchange(
+            "/api/users/nonexistent",
+            HttpMethod.GET,
+            new HttpEntity<>(headers),
+            ApiError.class
+        );
+        
+        // Then
+        assertThat(response.getHeaders().getFirst("X-Trace-Id")).isEqualTo(customTraceId);
+        assertThat(response.getBody().getTraceId()).isEqualTo(customTraceId);
+    }
+    
+    @Test
+    void shouldGenerateTraceIdIfNotProvided() {
+        // When
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/health", String.class);
+        
+        // Then
+        assertThat(response.getHeaders().getFirst("X-Trace-Id")).isNotNull();
+        assertThat(response.getHeaders().getFirst("X-Trace-Id")).hasSize(16);
+    }
+}
+```
+
+### Structured Logging Test
+
+```java
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {LoggingConfig.class})
+class StructuredLoggingTest {
+    
+    @Captor
+    private ArgumentCaptor<ILoggingEvent> loggingEventCaptor;
+    
+    @Test
+    void shouldLogWithTraceId() {
+        // Given
+        String traceId = "test-trace-123";
+        MDC.put("traceId", traceId);
+        
+        Logger logger = (Logger) LoggerFactory.getLogger(StructuredLoggingTest.class);
+        Appender mockAppender = mock(Appender.class);
+        logger.addAppender(mockAppender);
+        
+        // When
+        logger.info("Test log message");
+        
+        // Then
+        verify(mockAppender).doAppend(loggingEventCaptor.capture());
+        ILoggingEvent event = loggingEventCaptor.getValue();
+        assertThat(event.getMDCPropertyMap()).containsEntry("traceId", traceId);
+        
+        MDC.clear();
+    }
+}
+```
+
+---
+
+## ANTI-PATTERNS
+
+### ❌ DON'T:
+1. **Hardcode trace IDs**: Never manually create trace IDs in business logic
+2. **Log sensitive data**: Never log passwords, tokens, credit cards
+3. **High cardinality tags**: Don't use user IDs or trace IDs as metric tags
+4. **Blocking calls in filters**: Keep filters fast and non-blocking
+5. **Missing trace propagation**: Always propagate trace context to downstream services
+6. **Plain text logs**: Never use plain text logging in production
+7. **No error boundaries**: Frontend must have error boundaries with trace IDs
+8. **Missing metrics**: Instrument all critical business operations
+
+### ✅ DO:
+1. **Consistent trace format**: Use 16-character hex strings
+2. **MDC for context**: Use MDC to store trace ID for logging
+3. **Span hierarchy**: Create proper parent-child span relationships
+4. **Business events**: Add business-meaningful events to spans
+5. **Error correlation**: Always link errors to trace IDs
+6. **Dashboard automation**: Auto-generate dashboards from metrics
+7. **Alert tuning**: Start with high thresholds, tune based on real traffic
+8. **Documentation**: Document all custom metrics and their meanings
+
+---
+
+## DEPLOYMENT CHECKLIST
+
+### Production Readiness:
+
+- [ ] Trace ID filter configured and tested
+- [ ] Structured JSON logging enabled
+- [ ] OpenTelemetry exporter configured
+- [ ] Prometheus metrics exposed at /actuator/prometheus
+- [ ] Grafana dashboards imported
+- [ ] Alert rules configured in Prometheus
+- [ ] Frontend trace propagation tested
+- [ ] Error boundaries with trace display
+- [ ] Log aggregation configured (ELK/Loki)
+- [ ] Trace backend configured (Jaeger/Tempo)
+- [ ] All tests passing (trace, metrics, logging)
+- [ ] Documentation updated with runbooks
+
+---
+
+## PERFORMANCE IMPACT
+
+### Expected Overhead:
+- **Trace ID generation**: < 1ms per request
+- **Structured logging**: < 5ms per log entry
+- **OpenTelemetry spans**: < 2ms per span
+- **Metrics collection**: < 1ms per metric
+- **Total overhead**: < 10ms per request (< 1% for typical API)
+
+### Optimization Tips:
+- Use async span processors
+- Batch metrics export
+- Sample traces in high-traffic scenarios (e.g., 10% sampling)
+- Use appropriate log levels (INFO in prod, DEBUG in dev)
+- Cache metric instances, don't create on every call
+
+---
+
+## SUMMARY
+
+This observability system provides:
+
+✅ **End-to-end tracing** from frontend to database
+✅ **Structured logging** with full context correlation  
+✅ **Real-time metrics** for business and system health
+✅ **Automated alerting** for critical issues
+✅ **Production debugging** in seconds using trace IDs
+✅ **Visual dashboards** for monitoring trends
+✅ **Performance optimization** with detailed span data
+
+**Result**: Engineers can debug production issues in < 60 seconds by searching logs with trace_id.
