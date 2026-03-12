@@ -76,7 +76,7 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.createUser(req))
                 .isInstanceOf(DuplicateResourceException.class)
-                .hasFieldOrPropertyWithValue("code", "AUTH_DUPLICATE_USERNAME");
+                .hasFieldOrPropertyWithValue("code", "USER_101");
     }
 
     @Test
@@ -94,6 +94,6 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.updateStatus("u1", req))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "AUTH_LAST_ADMIN_PROTECTED");
+                .hasFieldOrPropertyWithValue("code", "AUTH_031");
     }
 }

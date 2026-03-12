@@ -12,6 +12,7 @@ import com.company.platform.auth.role.dto.request.*;
 import com.company.platform.auth.role.dto.response.*;
 import com.company.platform.auth.role.repository.AuthRoleRepository;
 import com.company.platform.shared.exception.DuplicateResourceException;
+import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.exception.ResourceNotFoundException;
 import com.company.platform.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +35,7 @@ public class RoleService {
     @Transactional
     public RoleResponse createRole(CreateRoleRequest request) {
         if (roleRepository.existsByRoleCodeAndDeletedFalse(request.getRoleCode())) {
-            throw new DuplicateResourceException("AUTH_DUPLICATE_ROLE_CODE",
-                    "Role code '" + request.getRoleCode() + "' already exists");
+            throw new DuplicateResourceException(ErrorCode.AUTH_ROLE_ALREADY_EXISTS);
         }
         AuthRole role = AuthRole.builder()
                 .roleCode(request.getRoleCode().toUpperCase())
@@ -93,8 +93,7 @@ public class RoleService {
         AuthRole role = findActiveRole(roleId);
         List<AuthClaim> claims = request.getClaimIds().stream()
                 .map(cid -> claimRepository.findByIdAndDeletedFalse(cid)
-                        .orElseThrow(() -> new ResourceNotFoundException("AUTH_CLAIM_NOT_FOUND",
-                                "Claim not found: " + cid)))
+                        .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTH_CLAIM_NOT_FOUND)))
                 .toList();
         role.getClaims().addAll(claims);
         role.setUpdatedBy(permissionEvaluator.currentUserId());
@@ -114,8 +113,7 @@ public class RoleService {
         AuthRole role = findActiveRole(roleId);
         List<AuthPermission> perms = request.getPermissionIds().stream()
                 .map(pid -> permissionRepository.findByIdAndDeletedFalse(pid)
-                        .orElseThrow(() -> new ResourceNotFoundException("AUTH_PERMISSION_NOT_FOUND",
-                                "Permission not found: " + pid)))
+                        .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTH_PERMISSION_NOT_FOUND)))
                 .toList();
         role.getPermissions().addAll(perms);
         role.setUpdatedBy(permissionEvaluator.currentUserId());
@@ -132,8 +130,7 @@ public class RoleService {
 
     private AuthRole findActiveRole(String id) {
         return roleRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("AUTH_ROLE_NOT_FOUND",
-                        "Role not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTH_ROLE_NOT_FOUND));
     }
 
     private RoleResponse toRoleResponse(AuthRole r) {

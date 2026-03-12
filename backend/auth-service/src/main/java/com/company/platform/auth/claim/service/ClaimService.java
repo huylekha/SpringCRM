@@ -6,6 +6,7 @@ import com.company.platform.auth.claim.dto.request.CreateClaimRequest;
 import com.company.platform.auth.claim.dto.response.ClaimResponse;
 import com.company.platform.auth.claim.repository.AuthClaimRepository;
 import com.company.platform.shared.exception.DuplicateResourceException;
+import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,8 +26,7 @@ public class ClaimService {
     @Transactional
     public ClaimResponse createClaim(CreateClaimRequest request) {
         if (claimRepository.existsByClaimCodeAndDeletedFalse(request.getClaimCode())) {
-            throw new DuplicateResourceException("AUTH_DUPLICATE_CLAIM_CODE",
-                    "Claim code '" + request.getClaimCode() + "' already exists");
+            throw new DuplicateResourceException(ErrorCode.AUTH_CLAIM_ALREADY_EXISTS);
         }
         AuthClaim claim = AuthClaim.builder()
                 .claimCode(request.getClaimCode())

@@ -10,6 +10,7 @@ import com.company.platform.auth.user.dto.response.*;
 import com.company.platform.auth.user.repository.AuthUserRepository;
 import com.company.platform.shared.exception.BusinessException;
 import com.company.platform.shared.exception.DuplicateResourceException;
+import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.exception.ResourceNotFoundException;
 import com.company.platform.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +37,10 @@ public class UserService {
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         if (userRepository.existsByUsernameAndDeletedFalse(request.getUsername())) {
-            throw new DuplicateResourceException("AUTH_DUPLICATE_USERNAME",
-                    "Username '" + request.getUsername() + "' already exists");
+            throw new DuplicateResourceException(ErrorCode.USER_ALREADY_EXISTS);
         }
         if (userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
-            throw new DuplicateResourceException("AUTH_DUPLICATE_EMAIL",
-                    "Email '" + request.getEmail() + "' already exists");
+            throw new DuplicateResourceException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
         }
 
         AuthUser user = AuthUser.builder()
@@ -68,8 +67,7 @@ public class UserService {
         if (request.getEmail() != null) {
             if (!request.getEmail().equals(user.getEmail()) &&
                     userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
-                throw new DuplicateResourceException("AUTH_DUPLICATE_EMAIL",
-                        "Email '" + request.getEmail() + "' already exists");
+                throw new DuplicateResourceException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
             }
             user.setEmail(request.getEmail());
         }
@@ -86,14 +84,12 @@ public class UserService {
         AuthUser user = findActiveUser(id);
         String newStatus = request.getStatus().toUpperCase();
         if (!Set.of("ACTIVE", "INACTIVE", "LOCKED").contains(newStatus)) {
-            throw new BusinessException("AUTH_VALIDATION_FAILED",
-                    "Invalid status: " + newStatus, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_VALUE, HttpStatus.UNPROCESSABLE_ENTITY);
         }
         if ("INACTIVE".equals(newStatus) && "SUPER_ADMIN".equals(getHighestRole(user))) {
             long adminCount = userRepository.countByRoles_RoleCodeAndDeletedFalse("SUPER_ADMIN");
             if (adminCount <= 1) {
-                throw new BusinessException("AUTH_LAST_ADMIN_PROTECTED",
-                        "Cannot deactivate the last SUPER_ADMIN user", HttpStatus.UNPROCESSABLE_ENTITY);
+                throw new BusinessException(ErrorCode.AUTH_LAST_ADMIN_PROTECTED, HttpStatus.UNPROCESSABLE_ENTITY);
             }
         }
         user.setStatus(newStatus);
@@ -120,8 +116,7 @@ public class UserService {
 
         List<AuthRole> rolesToAssign = request.getRoleIds().stream()
                 .map(roleId -> roleRepository.findByIdAndDeletedFalse(roleId)
-                        .orElseThrow(() -> new ResourceNotFoundException("AUTH_ROLE_NOT_FOUND",
-                                "Role not found: " + roleId)))
+                        .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTH_ROLE_NOT_FOUND)))
                 .toList();
 
         boolean assignsSuperAdmin = rolesToAssign.stream()
@@ -131,8 +126,7 @@ public class UserService {
             boolean actorIsSuperAdmin = actor != null && actor.getRoles().stream()
                     .anyMatch(r -> "SUPER_ADMIN".equals(r.getRoleCode()));
             if (!actorIsSuperAdmin) {
-                throw new BusinessException("AUTH_PRIVILEGE_ESCALATION_DENIED",
-                        "Only SUPER_ADMIN can assign SUPER_ADMIN role", HttpStatus.FORBIDDEN);
+                throw new BusinessException(ErrorCode.AUTH_INSUFFICIENT_PERMISSION, HttpStatus.FORBIDDEN);
             }
         }
 
@@ -163,8 +157,7 @@ public class UserService {
 
     private AuthUser findActiveUser(String id) {
         return userRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("AUTH_USER_NOT_FOUND",
-                        "User not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND));
     }
 
     private String getHighestRole(AuthUser user) {

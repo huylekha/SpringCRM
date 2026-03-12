@@ -1,0 +1,372 @@
+# Enterprise Multi-Language Error Code System
+
+## When to Apply This Rule
+
+Apply when:
+- Implementing error handling in backend services
+- Creating new error codes
+- Building frontend error display components
+- Adding new language translations
+- Designing API error responses
+- Working with validation messages
+
+## System Architecture
+
+### Backend (Spring Boot + Java 21)
+
+**ErrorCode Enum:**
+- Located: `backend/shared-lib/src/main/java/com/company/platform/shared/exception/ErrorCode.java`
+- 150+ domain-categorized codes
+- Categories: AUTH (001-099), USER (100-199), ORDER (200-299), PAYMENT (300-399), VALIDATION (400-499), SYSTEM (500-599), DATABASE (600-699), EXTERNAL_API (700-799), CRM (800-899)
+- Format: `DOMAIN_NUMBER` (e.g., `AUTH_001`, `USER_100`)
+
+**i18n Configuration:**
+- MessageSource: `ReloadableResourceBundleMessageSource`
+- LocaleResolver: `AcceptHeaderLocaleResolver`
+- Supported locales: en, vi, ja, zh
+- Fallback: English
+
+**Translation Files:**
+- `backend/shared-lib/src/main/resources/messages/messages_{locale}.properties`
+- All 150+ error codes translated in 4 languages
+- Bean Validation: `ValidationMessages_{locale}.properties`
+
+**MessageService:**
+- Located: `backend/shared-lib/src/main/java/com/company/platform/shared/i18n/MessageService.java`
+- 3-level fallback: locale message → ErrorCode default → code string
+- Methods: `getMessage(ErrorCode)`, `getMessage(String, Object[], Locale)`
+
+**GlobalExceptionHandler:**
+- Uses MessageService for all error translations
+- Structured logging with code, traceId, locale
+- Maps BusinessException, ValidationException, AuthException
+- Never exposes stacktraces to clients
+
+### Frontend (React/Next.js + TypeScript)
+
+**next-intl Configuration:**
+- Config: `frontend/src/i18n/request.ts`
+- Locales: ['en', 'vi', 'ja', 'zh']
+- Messages: `frontend/messages/{locale}.json`
+
+**Type Definitions:**
+- `frontend/src/types/api.ts`: ApiError, FieldError, ApiResponse, PageResponse
+- `frontend/src/types/error-codes.ts`: ErrorCode enum (mirrors backend)
+
+**Error Parser:**
+- Located: `frontend/src/lib/error-parser.ts`
+- Functions: `parseApiError`, `getErrorMessage`, `getFieldErrors`
+- 3-level fallback: locale file → backend message → generic message
+- Type guards: `isAuthError`, `isValidationError`, `hasFieldErrors`
+
+**API Client:**
+- Auto-injects `Accept-Language` header from current locale
+- Located: `frontend/src/services/api/interceptors.ts`
+
+**Error Display:**
+- Toast components: `frontend/src/components/error-toast.tsx`
+- TanStack Query integration: `frontend/src/lib/query-client.ts`
+- Global mutation error handler shows toasts automatically
+
+## API Response Standard
+
+### Success Response (Single Resource)
+```json
+{
+  "id": "uuid",
+  "username": "john.doe",
+  "email": "john@example.com"
+}
+```
+
+### Success Response (Paginated)
+```json
+{
+  "content": [...],
+  "page": 0,
+  "size": 20,
+  "totalElements": 100,
+  "totalPages": 5,
+  "sort": [{"field": "createdAt", "direction": "DESC"}]
+}
+```
+
+### Error Response
+```json
+{
+  "code": "USER_100",
+  "message": "User not found",
+  "traceId": "abc-123",
+  "timestamp": "2026-03-11T10:00:00Z"
+}
+```
+
+### Error Response (with validation)
+```json
+{
+  "code": "VALIDATION_400",
+  "message": "Validation failed",
+  "traceId": "abc-123",
+  "timestamp": "2026-03-11T10:00:00Z",
+  "details": [
+    {"field": "email", "message": "Email is required"},
+    {"field": "password", "message": "Password must be at least 8 characters"}
+  ]
+}
+```
+
+## Implementation Patterns
+
+### Backend: Throwing Business Exceptions
+
+```java
+// Correct
+throw new BusinessException(ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+
+// Incorrect - don't use raw strings
+throw new BusinessException("USER_100", "User not found", HttpStatus.NOT_FOUND);
+```
+
+### Backend: Bean Validation with i18n
+
+```java
+public class CreateUserRequest {
+    @NotBlank(message = "VALIDATION_USERNAME_REQUIRED")
+    @Size(min = 3, max = 50, message = "VALIDATION_USERNAME_SIZE")
+    private String username;
+    
+    @NotBlank(message = "VALIDATION_EMAIL_REQUIRED")
+    @Email(message = "VALIDATION_EMAIL_FORMAT")
+    private String email;
+}
+```
+
+### Frontend: Error Display
+
+```typescript
+// Correct - uses translation
+import { showErrorToast } from '@/components/error-toast';
+
+try {
+  await apiCall();
+} catch (error) {
+  showErrorToast(error); // auto-translates and displays
+}
+
+// With TanStack Query - automatic
+const mutation = useMutation({
+  mutationFn: createUser,
+  // onError is handled globally - no need to add here
+});
+```
+
+### Frontend: Manual Error Handling
+
+```typescript
+import { getErrorMessage } from '@/lib/error-parser';
+import { useTranslations } from 'next-intl';
+
+const t = useTranslations();
+
+try {
+  await apiCall();
+} catch (error) {
+  const message = getErrorMessage(error, t);
+  // Use message in custom UI
+}
+```
+
+## Language Detection Priority
+
+**Backend:**
+1. `Accept-Language` header (auto-injected by frontend)
+2. User profile `preferredLanguage` field (future)
+3. Default: `en`
+
+**Frontend:**
+1. URL path locale (`/vi/dashboard`)
+2. Cookie `NEXT_LOCALE`
+3. Browser `Accept-Language`
+4. Default: `en`
+
+## Adding New Error Codes
+
+### Step 1: Add to Backend Enum
+
+Edit `backend/shared-lib/src/main/java/com/company/platform/shared/exception/ErrorCode.java`:
+
+```java
+// Add to appropriate category
+CRM_LEAD_DUPLICATE("CRM_820", "Lead already exists"),
+```
+
+### Step 2: Add Translations
+
+Edit all 4 message property files:
+
+**messages_en.properties:**
+```properties
+CRM_820=Lead already exists
+```
+
+**messages_vi.properties:**
+```properties
+CRM_820=Khách hàng tiềm năng đã tồn tại
+```
+
+**messages_ja.properties, messages_zh.properties:** Add translations
+
+### Step 3: Add to Frontend Enum
+
+Edit `frontend/src/types/error-codes.ts`:
+
+```typescript
+export enum ErrorCode {
+  // ... existing codes
+  CRM_LEAD_DUPLICATE = 'CRM_820',
+}
+```
+
+### Step 4: Add Frontend Translations
+
+Edit all 4 locale JSON files:
+
+**messages/en.json:**
+```json
+{
+  "errors": {
+    "CRM_820": "Lead already exists"
+  }
+}
+```
+
+**messages/vi.json, ja.json, zh.json:** Add translations
+
+## Adding New Language
+
+### Step 1: Backend
+
+1. Add locale to `I18nConfig.java` supported locales
+2. Create `messages_{locale}.properties`
+3. Create `ValidationMessages_{locale}.properties`
+4. Translate all 150+ error codes
+
+### Step 2: Frontend
+
+1. Add locale to `frontend/src/i18n/request.ts` locales array
+2. Create `frontend/messages/{locale}.json`
+3. Translate all error codes
+
+## Database Multi-Language Pattern
+
+For dynamic content (products, categories):
+
+```sql
+CREATE TABLE product (
+    id UUID PRIMARY KEY,
+    sku VARCHAR(100) NOT NULL UNIQUE,
+    price DECIMAL(10,2) NOT NULL
+);
+
+CREATE TABLE product_translation (
+    product_id UUID NOT NULL,
+    language VARCHAR(5) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    PRIMARY KEY (product_id, language),
+    FOREIGN KEY (product_id) REFERENCES product(id)
+);
+```
+
+## Testing Requirements
+
+### Backend Tests
+
+Test in `MessageServiceTest.java`:
+- Translation for all 4 languages
+- Fallback to default message for unsupported locale
+- Message with parameters
+- Bean Validation message resolution
+
+### Frontend Tests
+
+Test in `error-parser.test.ts`:
+- `parseApiError` for AxiosError
+- `getErrorMessage` with fallback chain
+- `getFieldErrors` extraction
+- Type guards: `isAuthError`, `isValidationError`
+
+## Anti-Patterns to Avoid
+
+### Backend
+
+❌ **Don't:**
+- Hardcode error messages in controllers/services
+- Use raw string error codes
+- Expose stacktraces in API responses
+- Skip translation for validation messages
+- Return 200 OK with error in body
+
+✅ **Do:**
+- Use ErrorCode enum everywhere
+- Let GlobalExceptionHandler handle all exceptions
+- Use MessageService for all user-facing messages
+- Return proper HTTP status codes
+- Include traceId in all error responses
+
+### Frontend
+
+❌ **Don't:**
+- Display backend error messages directly without translation
+- Hardcode error messages in components
+- Show error codes to users without explanation
+- Ignore validation field errors
+
+✅ **Do:**
+- Use error parser utilities everywhere
+- Let global error handler show toasts
+- Use translated messages from locale files
+- Display field-level errors for forms
+
+## Fallback Strategy
+
+**Backend:**
+1. Try locale-specific message from .properties
+2. Fall back to ErrorCode.getDefaultMessage() (English)
+3. Never return null or empty message
+
+**Frontend:**
+1. Try translation from locale JSON file (`errors.{CODE}`)
+2. Fall back to backend message from API response
+3. Fall back to generic message (`errors.generic`)
+
+## Logging Standards
+
+All error logs must include:
+- `code`: Error code (e.g., "USER_100")
+- `traceId`: Correlation ID from request
+- `locale`: User's language
+- `message`: Translated message
+- `status`: HTTP status code
+
+Example:
+```java
+log.warn("Business exception: code={}, traceId={}, locale={}, status={}", 
+    code, traceId, locale, status);
+```
+
+## Documentation References
+
+- Implementation summary: `docs/implementation/enterprise-multi-language-error-system-summary.md`
+- Backend tests: `backend/shared-lib/src/test/java/com/company/platform/shared/i18n/MessageServiceTest.java`
+- Frontend tests: `frontend/src/lib/__tests__/error-parser.test.ts`
+
+## Success Metrics
+
+- 150+ error codes across 9 categories
+- 4 languages fully supported (en, vi, ja, zh)
+- 3-level fallback strategy ensures no blank messages
+- Zero exposed stacktraces to clients
+- Type-safe error handling with enum synchronization
+- Global error display with automatic toasts
+- Comprehensive test coverage for translation and fallback

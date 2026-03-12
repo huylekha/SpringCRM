@@ -21,6 +21,8 @@
     "@hookform/resolvers": "^3.9.0",
     "recharts": "^2.15.0",
     "next-auth": "^4.24.0",
+    "next-intl": "^3.22.0",
+    "sonner": "^1.7.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.6.0",
     "class-variance-authority": "^0.7.0",

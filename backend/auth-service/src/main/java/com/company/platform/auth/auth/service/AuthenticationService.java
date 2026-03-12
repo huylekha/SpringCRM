@@ -9,6 +9,7 @@ import com.company.platform.auth.auth.repository.RefreshTokenRepository;
 import com.company.platform.auth.user.domain.AuthUser;
 import com.company.platform.auth.user.repository.AuthUserRepository;
 import com.company.platform.shared.exception.BusinessException;
+import com.company.platform.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,16 +37,13 @@ public class AuthenticationService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
         AuthUser user = userRepository.findByUsernameAndDeletedFalse(request.getUsername())
-                .orElseThrow(() -> new BusinessException("AUTH_INVALID_CREDENTIALS",
-                        "Username or password is invalid", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED));
 
         if ("LOCKED".equals(user.getStatus())) {
-            throw new BusinessException("AUTH_ACCOUNT_LOCKED",
-                    "Account is locked due to too many failed login attempts", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED, HttpStatus.UNAUTHORIZED);
         }
         if ("INACTIVE".equals(user.getStatus())) {
-            throw new BusinessException("AUTH_ACCOUNT_INACTIVE",
-                    "Account is deactivated", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_INACTIVE, HttpStatus.UNAUTHORIZED);
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -54,8 +52,7 @@ public class AuthenticationService {
                 user.setStatus("LOCKED");
             }
             userRepository.save(user);
-            throw new BusinessException("AUTH_INVALID_CREDENTIALS",
-                    "Username or password is invalid", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED);
         }
 
         user.setFailedLoginAttempts(0);
@@ -101,12 +98,10 @@ public class AuthenticationService {
     public RefreshResponse refresh(RefreshRequest request) {
         String hash = hashToken(request.getRefreshToken());
         RefreshToken stored = refreshTokenRepository.findByTokenHashAndRevokedFalse(hash)
-                .orElseThrow(() -> new BusinessException("AUTH_TOKEN_REVOKED",
-                        "Refresh token is invalid or has been revoked", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, HttpStatus.UNAUTHORIZED));
 
         if (stored.getExpiresAt().isBefore(Instant.now())) {
-            throw new BusinessException("AUTH_TOKEN_EXPIRED",
-                    "Refresh token has expired", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
         }
 
         // Revoke old token
@@ -114,12 +109,10 @@ public class AuthenticationService {
         refreshTokenRepository.save(stored);
 
         AuthUser user = userRepository.findByIdAndDeletedFalse(stored.getUserId())
-                .orElseThrow(() -> new BusinessException("AUTH_ACCOUNT_INACTIVE",
-                        "User account is no longer active", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_ACCOUNT_INACTIVE, HttpStatus.UNAUTHORIZED));
 
         if (!"ACTIVE".equals(user.getStatus())) {
-            throw new BusinessException("AUTH_ACCOUNT_INACTIVE",
-                    "User account is no longer active", HttpStatus.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_INACTIVE, HttpStatus.UNAUTHORIZED);
         }
 
         List<String> roles = user.getRoles().stream()

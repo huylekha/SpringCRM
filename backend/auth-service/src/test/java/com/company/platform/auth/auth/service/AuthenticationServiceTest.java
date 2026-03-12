@@ -90,7 +90,7 @@ class AuthenticationServiceTest {
 
         assertThatThrownBy(() -> authenticationService.login(req))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "AUTH_INVALID_CREDENTIALS");
+                .hasFieldOrPropertyWithValue("code", "AUTH_001");
     }
 
     @Test
@@ -108,7 +108,7 @@ class AuthenticationServiceTest {
 
         assertThatThrownBy(() -> authenticationService.login(req))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "AUTH_ACCOUNT_LOCKED");
+                .hasFieldOrPropertyWithValue("code", "AUTH_009");
     }
 
     @Test
@@ -121,7 +121,7 @@ class AuthenticationServiceTest {
 
         assertThatThrownBy(() -> authenticationService.login(req))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "AUTH_INVALID_CREDENTIALS");
+                .hasFieldOrPropertyWithValue("code", "AUTH_001");
     }
 
     @Test

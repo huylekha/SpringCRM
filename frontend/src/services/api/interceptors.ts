@@ -18,6 +18,17 @@ function processQueue(error: unknown, token: string | null = null) {
   failedQueue = [];
 }
 
+/**
+ * Get current locale from document HTML lang attribute
+ * This is set by next-intl middleware
+ */
+function getCurrentLocale(): string {
+  if (typeof window !== 'undefined') {
+    return document.documentElement.lang || 'en';
+  }
+  return 'en';
+}
+
 export function setupInterceptors(client: AxiosInstance) {
   client.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -25,6 +36,12 @@ export function setupInterceptors(client: AxiosInstance) {
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      
+      // Add Accept-Language header for i18n support
+      if (config.headers) {
+        config.headers['Accept-Language'] = getCurrentLocale();
+      }
+      
       return config;
     },
     (error) => Promise.reject(error),

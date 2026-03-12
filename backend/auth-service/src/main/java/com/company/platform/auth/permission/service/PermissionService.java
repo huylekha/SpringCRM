@@ -6,6 +6,7 @@ import com.company.platform.auth.permission.dto.request.CreatePermissionRequest;
 import com.company.platform.auth.permission.dto.response.PermissionResponse;
 import com.company.platform.auth.permission.repository.AuthPermissionRepository;
 import com.company.platform.shared.exception.DuplicateResourceException;
+import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,8 +26,7 @@ public class PermissionService {
     @Transactional
     public PermissionResponse createPermission(CreatePermissionRequest request) {
         if (permissionRepository.existsByPermissionCodeAndDeletedFalse(request.getPermissionCode())) {
-            throw new DuplicateResourceException("AUTH_DUPLICATE_PERMISSION_CODE",
-                    "Permission code '" + request.getPermissionCode() + "' already exists");
+            throw new DuplicateResourceException(ErrorCode.AUTH_PERMISSION_ALREADY_EXISTS);
         }
         AuthPermission perm = AuthPermission.builder()
                 .permissionCode(request.getPermissionCode())
