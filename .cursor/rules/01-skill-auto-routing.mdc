@@ -16,6 +16,12 @@ alwaysApply: true
   - `#BA` -> `business-analyst-enterprise`
   - `#SA` -> `solution-architect-enterprise`
   - `#PM` -> `product-manager-enterprise`
+  - `#Review` -> `code-review-ai` (Full code review of all Git changes)
+  - `#ReviewBE` -> `code-review-ai` (Backend-only code review)
+  - `#ReviewFE` -> `code-review-ai` (Frontend-only code review)
+  - `#Review` -> `code-review-ai` (AI code review with quality report)
+  - `#ReviewBE` -> `code-review-ai` (backend-only scope)
+  - `#ReviewFE` -> `code-review-ai` (frontend-only scope)
 
 ## Role Context Contract
 - `#BE`: backend-first context. Prioritize backend rules and backend specialist skills.
@@ -26,7 +32,41 @@ alwaysApply: true
 - `#BA`: business-analysis-first context.
 - `#SA`: solution-architecture-first context.
 - `#PM`: product-management-first context.
+- `#Review`/`#ReviewBE`/`#ReviewFE`: code-review-first context. Prioritize quality analysis and compliance checking.
 - Role context controls primary reasoning priority; file globs determine which domain rule files are loaded.
+
+## Auto-Trigger Logic for Code Review
+
+### Automatic Review After Coding Session
+
+When AI completes a coding task (file modifications), automatically trigger code review if:
+1. User has not disabled auto-review (`AUTO_REVIEW` env var is not `false`)
+2. At least one code file was modified (not just docs/config)
+3. Last AI action was a file write/edit operation
+
+**Auto-trigger behavior:**
+- Wait for user confirmation before running review
+- Show prompt: "I've completed the implementation. Would you like me to review the changes? (yes/no/skip)"
+- If user says yes or doesn't respond within conversation context, run review
+- If user says no or skip, don't run review but remind about manual `#Review` trigger
+
+**Scope detection for auto-review:**
+- If only backend files changed: Run as `#ReviewBE`
+- If only frontend files changed: Run as `#ReviewFE`
+- If both changed: Run full `#Review`
+
+### Manual Review Triggers
+
+User explicitly types:
+- `#Review` - Review all Git changes (staged + unstaged)
+- `#ReviewBE` - Review only backend changes
+- `#ReviewFE` - Review only frontend changes
+
+**Manual trigger behavior:**
+- Immediately load `code-review-ai` skill
+- Analyze scope based on tag variant
+- Generate full review report
+- Present findings and wait for user decision
 
 ## Tag Conflict Rule
 - If multiple role tags exist in one prompt, the last role tag is the primary context.

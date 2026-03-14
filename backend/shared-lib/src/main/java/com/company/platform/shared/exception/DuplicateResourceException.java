@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 
 public class DuplicateResourceException extends BusinessException {
 
+  private static final long serialVersionUID = 1L;
+
   @Deprecated
   public DuplicateResourceException(String code, String message) {
     super(code, message, HttpStatus.CONFLICT);

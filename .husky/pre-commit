@@ -1,53 +1,175 @@
 #!/usr/bin/env sh
 
-echo "🔍 Running backend pre-commit checks..."
+# Strict Pre-commit Hook with Selective Testing
+# Runs tests only for changed services with coverage enforcement
 
-# Check if backend files changed
-BACKEND_CHANGED=$(git diff --cached --name-only | grep '^backend/' | wc -l)
+echo "🔒 STRICT MODE: Running comprehensive pre-commit checks..."
+echo ""
 
-if [ "$BACKEND_CHANGED" -gt 0 ]; then
-  echo "📦 Backend files changed, running Maven checks..."
+# Check for emergency bypass
+. "$(dirname "$0")/lib/skip-checks.sh"
+
+# Detect changed services
+. "$(dirname "$0")/lib/detect-changes.sh"
+
+echo ""
+
+# ============================================================================
+# BACKEND SERVICES - Test each changed service individually
+# ============================================================================
+
+if [ "$CHANGED_AUTH_SERVICE" = true ] || \
+   [ "$CHANGED_CRM_SERVICE" = true ] || \
+   [ "$CHANGED_API_GATEWAY" = true ] || \
+   [ "$CHANGED_SHARED_LIB" = true ]; then
   
+  echo "📦 Backend changes detected, running strict checks..."
   cd backend
   
-  # Run Spotless (code formatting)
-  echo "Checking code formatting with Spotless..."
+  # Run Spotless (code formatting) for all backend
+  echo ""
+  echo "▶️  Checking code formatting with Spotless..."
   mvn spotless:check -q
   if [ $? -ne 0 ]; then
     echo "❌ Code formatting issues detected. Running spotless:apply..."
     mvn spotless:apply
     echo "✅ Code formatted. Please review changes and commit again."
+    cd ..
     exit 1
   fi
+  echo "   ✓ Formatting passed"
   
-  # Run quick validation
-  echo "Running Maven validation..."
-  mvn validate -q
+  # Compile check with zero warnings enforcement
+  echo ""
+  echo "▶️  Compiling with zero warnings enforcement..."
+  mvn compile -q
   if [ $? -ne 0 ]; then
-    echo "❌ Maven validation failed"
+    echo "❌ Compilation failed or warnings detected"
+    echo "   Java compiler warnings are NOT allowed"
+    echo "   Fix all warnings shown above before committing"
+    echo ""
+    echo "   Common fixes:"
+    echo "   - Remove unused imports: Use IDE auto-import cleanup"
+    echo "   - Fix unchecked warnings: Add proper generics (List<String> not List)"
+    echo "   - Fix deprecated APIs: Migrate to current APIs"
+    echo "   - Remove unused variables: Delete or use them"
+    echo ""
+    echo "   To see detailed warnings:"
+    echo "   cd backend && mvn compile"
+    cd ..
     exit 1
+  fi
+  echo "   ✓ Compilation passed (zero warnings)"
+  
+  # Test auth-service
+  if [ "$CHANGED_AUTH_SERVICE" = true ]; then
+    echo ""
+    echo "▶️  Testing auth-service with coverage..."
+    mvn test -pl auth-service -am -q
+    if [ $? -ne 0 ]; then
+      echo "❌ auth-service tests failed"
+      cd ..
+      exit 1
+    fi
+    
+    # Check coverage threshold
+    mvn jacoco:check -pl auth-service -q
+    if [ $? -ne 0 ]; then
+      echo "❌ auth-service coverage below threshold (80% line, 75% branch)"
+      echo "   Run 'mvn jacoco:report' to see coverage report"
+      cd ..
+      exit 1
+    fi
+    echo "   ✓ auth-service tests passed with coverage"
+  fi
+  
+  # Test crm-service
+  if [ "$CHANGED_CRM_SERVICE" = true ]; then
+    echo ""
+    echo "▶️  Testing crm-service with coverage..."
+    mvn test -pl crm-service -am -q
+    if [ $? -ne 0 ]; then
+      echo "❌ crm-service tests failed"
+      cd ..
+      exit 1
+    fi
+    
+    # Check coverage threshold
+    mvn jacoco:check -pl crm-service -q
+    if [ $? -ne 0 ]; then
+      echo "❌ crm-service coverage below threshold (80% line, 75% branch)"
+      echo "   Run 'mvn jacoco:report' to see coverage report"
+      cd ..
+      exit 1
+    fi
+    echo "   ✓ crm-service tests passed with coverage"
+  fi
+  
+  # Test api-gateway
+  if [ "$CHANGED_API_GATEWAY" = true ]; then
+    echo ""
+    echo "▶️  Testing api-gateway with coverage..."
+    mvn test -pl api-gateway -am -q
+    if [ $? -ne 0 ]; then
+      echo "❌ api-gateway tests failed"
+      cd ..
+      exit 1
+    fi
+    
+    # Check coverage threshold
+    mvn jacoco:check -pl api-gateway -q
+    if [ $? -ne 0 ]; then
+      echo "❌ api-gateway coverage below threshold (80% line, 75% branch)"
+      echo "   Run 'mvn jacoco:report' to see coverage report"
+      cd ..
+      exit 1
+    fi
+    echo "   ✓ api-gateway tests passed with coverage"
   fi
   
   cd ..
-  echo "✅ Backend validation passed!"
+  echo ""
+  echo "✅ All backend checks passed!"
 fi
 
-# Check if frontend files changed
-FRONTEND_CHANGED=$(git diff --cached --name-only | grep '^frontend/' | wc -l)
+# ============================================================================
+# FRONTEND - Run tests with coverage
+# ============================================================================
 
-if [ "$FRONTEND_CHANGED" -gt 0 ]; then
-  echo "⚛️  Frontend files changed, running frontend checks..."
+if [ "$CHANGED_FRONTEND" = true ]; then
+  echo ""
+  echo "⚛️  Frontend changes detected, running strict checks..."
   cd frontend
   
-  # Run lint-staged only (ESLint + Prettier)
+  # Run lint-staged (ESLint + Prettier)
+  echo ""
+  echo "▶️  Running lint-staged..."
   npx lint-staged
   if [ $? -ne 0 ]; then
     echo "❌ Frontend lint-staged failed"
+    cd ..
     exit 1
   fi
+  echo "   ✓ Linting passed"
+  
+  # Run tests with coverage
+  echo ""
+  echo "▶️  Running frontend tests with coverage..."
+  npm run test:coverage -- --run
+  if [ $? -ne 0 ]; then
+    echo "❌ Frontend tests failed or coverage below threshold"
+    echo "   Coverage thresholds: 75% lines, 70% branches/functions/statements"
+    cd ..
+    exit 1
+  fi
+  echo "   ✓ Tests passed with coverage"
   
   cd ..
-  echo "✅ Frontend validation passed!"
+  echo ""
+  echo "✅ Frontend checks passed!"
 fi
 
-echo "✨ All pre-commit checks passed!"
+echo ""
+echo "✨ All strict pre-commit checks passed!"
+echo ""
+echo "💡 Tip: Use 'SKIP_HOOKS=1 git commit -m \"message\"' for emergency bypass"

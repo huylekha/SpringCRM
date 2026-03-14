@@ -1,0 +1,487 @@
+# Code Review Checklist
+
+This checklist defines quality standards for AI code review, aligned with enterprise Spring Boot and Next.js best practices.
+
+## 1. Architecture Compliance
+
+### Backend Services (Spring Boot)
+
+#### Clean Layering (AD-002)
+- [ ] Controllers only handle HTTP concerns (validation, response mapping)
+- [ ] Services contain business logic, transactions
+- [ ] Repositories only contain data access (no business logic)
+- [ ] No repository calls in controllers
+- [ ] No business logic in repositories
+- [ ] DTOs used for API contracts, separate from domain entities
+
+#### Dependency Direction (AD-003)
+- [ ] Controller → Service → Repository (correct)
+- [ ] No circular dependencies between layers
+- [ ] Shared-lib dependencies flow correctly
+
+#### Service Boundaries (AD-004)
+- [ ] auth-service: Authentication, authorization, user management only
+- [ ] crm-service: CRM domain logic only (leads, opportunities, accounts)
+- [ ] api-gateway: Routing, rate limiting, authentication delegation only
+- [ ] No direct database calls between services
+- [ ] Inter-service communication via OpenFeign or events
+
+### Frontend (Next.js/React)
+
+#### Feature-Based Structure
+- [ ] Features organized in `app/[feature]` folders
+- [ ] Shared components in `components/` with clear purpose
+- [ ] Business logic in custom hooks or Zustand stores
+- [ ] API calls centralized in `services/api/`
+
+#### Component Design
+- [ ] Components <200 lines (extract if larger)
+- [ ] Single Responsibility Principle
+- [ ] Props interface properly typed
+- [ ] No prop drilling (use context or Zustand for deep state)
+
+## 2. Code Quality Standards
+
+### Zero Warnings Policy (MANDATORY)
+
+#### Backend (Java/Maven)
+- [ ] **ZERO compiler warnings** - Build must pass with `-Werror`
+- [ ] No unchecked warnings (`@SuppressWarnings` only with justification)
+- [ ] No raw types (use generics properly: `List<String>` not `List`)
+- [ ] No deprecated API usage (migrate to current APIs)
+- [ ] No unused imports or variables
+- [ ] No unnecessary casts
+- [ ] No empty catch/try/finally blocks
+- [ ] No switch fallthrough without comment
+- [ ] Fix all IDE warnings (IntelliJ IDEA inspections)
+
+**Enforced by:**
+- Maven compiler plugin with `-Xlint:all -Werror`
+- Pre-commit hook: `mvn compile` must succeed
+- CI Pipeline: Build fails on warnings
+
+**Suppressing Warnings (Rare Cases Only):**
+```java
+// ✅ GOOD: Justified suppression with explanation
+@SuppressWarnings("unchecked") // Safe: We control the cache type
+private <T> T getFromCache(String key) {
+    return (T) cache.get(key);
+}
+
+// ❌ BAD: Blanket suppression without reason
+@SuppressWarnings("all")
+public void someMethod() { ... }
+```
+
+#### Frontend (TypeScript/ESLint)
+- [ ] **ZERO ESLint warnings** - Only errors or clean
+- [ ] No `@ts-ignore` without explanation
+- [ ] No `any` type without justification
+- [ ] No unused variables or imports
+- [ ] No console.log in production code
+- [ ] Fix all TypeScript strict mode issues
+
+**Enforced by:**
+- ESLint configuration with `max-warnings: 0`
+- Pre-commit hook: `npm run lint` must pass
+- CI Pipeline: Lint fails on warnings
+
+### Null Safety (AD-006)
+
+#### Backend (Java)
+- [ ] Use `Optional<T>` for nullable returns
+- [ ] Never return null from service methods
+- [ ] Use `Objects.requireNonNull()` for critical parameters
+- [ ] `@NotNull`, `@NotBlank` on DTO fields
+- [ ] Constructor parameters validated or final
+- [ ] No `Optional.get()` without `isPresent()` check
+
+#### Frontend (TypeScript)
+- [ ] Use `?.` optional chaining
+- [ ] Use `??` nullish coalescing
+- [ ] Properly typed (no `any` except in controlled cases)
+- [ ] Guard clauses for nullable values
+
+### Error Handling (AD-007)
+
+#### Backend
+- [ ] All errors use `ErrorCode` enum (no raw strings)
+- [ ] Business errors throw `BusinessException`
+- [ ] Validation errors throw `ValidationException`
+- [ ] No empty catch blocks
+- [ ] No generic `Exception` catches (use specific types)
+- [ ] Errors logged with context (traceId, userId, errorCode)
+- [ ] Never expose stack traces in API responses
+
+#### Frontend
+- [ ] Use `parseApiError()` for API errors
+- [ ] Display user-friendly messages (not raw error codes)
+- [ ] Handle loading/error states in all queries/mutations
+- [ ] Error boundaries for component trees
+- [ ] Log errors to monitoring (if configured)
+
+### Transaction Management (AD-008)
+
+#### Backend Only
+- [ ] `@Transactional` on service methods that modify data
+- [ ] Read-only transactions: `@Transactional(readOnly = true)`
+- [ ] Proper isolation level (default REPEATABLE_READ is usually correct)
+- [ ] No long-running transactions (>5 seconds)
+- [ ] Transactions don't span HTTP calls or external I/O
+- [ ] Rollback on business exceptions: `@Transactional(rollbackFor = BusinessException.class)`
+
+### Input Validation
+
+#### Backend
+- [ ] All DTOs have `@Valid` annotation
+- [ ] Required fields: `@NotNull`, `@NotBlank`
+- [ ] String length: `@Size(min=, max=)`
+- [ ] Email format: `@Email`
+- [ ] Custom validation: `@Pattern`, custom validators
+- [ ] Validate enums (no raw strings)
+- [ ] Sanitize user input for SQL/XSS
+
+#### Frontend
+- [ ] All forms use `react-hook-form` + `zod`
+- [ ] Zod schemas for validation
+- [ ] Client-side validation before API call
+- [ ] Display field-level errors
+- [ ] Disable submit during validation
+
+### Naming Conventions
+
+#### Backend
+- [ ] Classes: PascalCase (UserService, AccountRepository)
+- [ ] Methods: camelCase (getUserById, createLead)
+- [ ] Constants: UPPER_SNAKE_CASE (MAX_RETRY_ATTEMPTS)
+- [ ] Packages: lowercase (com.company.platform.auth)
+- [ ] REST endpoints: kebab-case (/api/users/profile, /api/leads/active)
+- [ ] Database tables: snake_case (auth_user, crm_lead)
+
+#### Frontend
+- [ ] Components: PascalCase (UserProfile, LeadForm)
+- [ ] Functions: camelCase (getUserById, formatDate)
+- [ ] Constants: UPPER_SNAKE_CASE (API_BASE_URL)
+- [ ] CSS classes: kebab-case (user-profile, lead-form)
+- [ ] Files: kebab-case (user-profile.tsx, lead-form.tsx)
+
+### Code Smells
+
+#### General
+- [ ] No methods >50 lines (extract sub-methods)
+- [ ] No classes >500 lines (split responsibilities)
+- [ ] No duplicated logic (extract to shared utility)
+- [ ] No magic numbers (use named constants)
+- [ ] No commented-out code (remove or document why)
+- [ ] No TODOs without ticket references
+
+#### Backend-Specific
+- [ ] No God classes (services with >15 public methods)
+- [ ] No anemic domain models (entities with only getters/setters)
+- [ ] No static utility classes with state
+- [ ] No Lombok `@Data` (use `@Getter`, `@Builder` explicitly)
+
+#### Frontend-Specific
+- [ ] No inline styles (use Tailwind classes)
+- [ ] No hardcoded strings (use i18n)
+- [ ] No useEffect with missing dependencies
+- [ ] No unnecessary re-renders (use React.memo, useMemo)
+
+## 3. Security Standards
+
+### Authentication & Authorization (AD-009)
+
+#### Backend
+- [ ] All endpoints have `@PreAuthorize` or `@Secured` (except public health checks)
+- [ ] Role checks use `hasRole('ROLE_ADMIN')` format
+- [ ] JWT tokens validated on every request
+- [ ] Refresh tokens stored securely
+- [ ] Passwords hashed with BCrypt (min strength 12)
+- [ ] Sensitive fields use `@JsonIgnore`
+- [ ] Session timeout configured (30 minutes default)
+
+#### Frontend
+- [ ] Auth tokens stored in httpOnly cookies (not localStorage)
+- [ ] Redirect to login if 401 response
+- [ ] Protected routes check auth state
+- [ ] Hide UI elements based on user roles
+- [ ] Logout clears all auth state
+
+### Input Sanitization
+
+#### Backend
+- [ ] No raw SQL queries (use JPQL or Criteria API)
+- [ ] Parameterized queries only (prevent SQL injection)
+- [ ] File uploads validate type and size
+- [ ] Path traversal protection (validate file paths)
+- [ ] No reflection on user input
+- [ ] Deserialize only trusted classes
+
+#### Frontend
+- [ ] Escape user content before rendering
+- [ ] Use `dangerouslySetInnerHTML` only when necessary (and sanitize)
+- [ ] Validate URLs before navigation
+- [ ] CSRF tokens in forms
+- [ ] No eval() or Function() constructor
+
+### Secrets Management
+
+#### Backend
+- [ ] No hardcoded credentials
+- [ ] Use environment variables for secrets
+- [ ] Encrypt sensitive data at rest
+- [ ] Log statements don't include passwords/tokens
+- [ ] API keys rotated regularly
+
+#### Frontend
+- [ ] No API keys in client code
+- [ ] Use backend proxy for third-party APIs
+- [ ] No sensitive data in URL params
+- [ ] No sensitive data in localStorage
+
+### CORS & CSP
+
+#### Backend
+- [ ] CORS configured (no `allowedOrigins = "*"` in production)
+- [ ] Allowed origins whitelist
+- [ ] Credentials allowed only for trusted origins
+
+#### Frontend
+- [ ] CSP headers configured
+- [ ] Only load resources from trusted domains
+
+## 4. Database Performance (AD-010)
+
+### Query Optimization
+
+#### Backend Only
+- [ ] No N+1 queries (use `@EntityGraph` or `JOIN FETCH`)
+- [ ] Pagination for list endpoints (`Pageable` parameter)
+- [ ] Indexes on foreign keys
+- [ ] Indexes on frequently queried fields
+- [ ] Avoid `SELECT *` (fetch only needed columns)
+- [ ] Use projections for read-heavy queries
+- [ ] Batch inserts/updates (use `saveAll()`, not loops)
+
+### Connection Management
+- [ ] Connection pool sized correctly (10-20 for small apps)
+- [ ] Timeouts configured (30s max)
+- [ ] No long-running transactions
+- [ ] Close resources in finally blocks or try-with-resources
+
+### Caching Strategy
+- [ ] Read-heavy data cached (e.g., lookup tables)
+- [ ] Cache eviction strategy defined
+- [ ] Cache keys include tenant/user context
+- [ ] No caching of sensitive data
+
+## 5. Observability (AD-011)
+
+### Logging Standards
+
+#### Backend
+- [ ] Structured JSON logging (use logback-spring.xml)
+- [ ] Log level appropriate:
+  - ERROR: System failures
+  - WARN: Business exceptions, degraded performance
+  - INFO: Normal business operations
+  - DEBUG: Diagnostic info (not in production)
+- [ ] Include context: `log.info("User logged in: userId={}", userId)`
+- [ ] No sensitive data in logs (passwords, tokens, PII)
+- [ ] Log all exceptions with stack trace
+- [ ] TraceId included in all log statements
+
+#### Frontend
+- [ ] Console logs removed in production build
+- [ ] Errors sent to monitoring service
+- [ ] User actions logged for analytics (if required)
+
+### Metrics
+- [ ] Expose `/actuator/prometheus` endpoint
+- [ ] Custom metrics for business operations (registrations, orders)
+- [ ] Track API response times
+- [ ] Track error rates by endpoint
+
+### Tracing
+- [ ] TraceId propagated across services
+- [ ] Spans created for service methods
+- [ ] TraceId included in error responses
+
+## 6. Testing Standards
+
+### Backend Tests
+
+#### Unit Tests
+- [ ] Service methods have unit tests
+- [ ] Mock repositories (use Mockito)
+- [ ] Test happy path + edge cases
+- [ ] Test exception scenarios
+- [ ] Assert specific exceptions (not just `assertThrows`)
+
+#### Integration Tests
+- [ ] Repository tests use `@DataJpaTest`
+- [ ] Controller tests use `@WebMvcTest`
+- [ ] Test full request/response cycle
+- [ ] Test validation failures
+- [ ] Test authorization (403 responses)
+
+#### Coverage Targets
+- [ ] Line coverage: ≥80%
+- [ ] Branch coverage: ≥75%
+- [ ] Exclude generated code, DTOs, configs from coverage
+
+### Frontend Tests
+
+#### Component Tests
+- [ ] Render tests for all components
+- [ ] User interaction tests (click, type, submit)
+- [ ] Loading state tests
+- [ ] Error state tests
+- [ ] Mock API calls (use MSW)
+
+#### Hook Tests
+- [ ] Test custom hooks with `renderHook`
+- [ ] Test state changes
+- [ ] Test side effects
+
+#### Coverage Targets
+- [ ] Line coverage: ≥75%
+- [ ] Branch coverage: ≥70%
+- [ ] Function coverage: ≥70%
+- [ ] Statement coverage: ≥70%
+
+### Test Quality
+- [ ] Tests are independent (no shared state)
+- [ ] Tests have clear arrange/act/assert structure
+- [ ] Test names describe behavior (not implementation)
+- [ ] No flaky tests (fix or skip)
+- [ ] Fast tests (<1s per unit test)
+
+## 7. Performance Standards
+
+### Backend Performance
+
+#### API Response Times
+- [ ] GET requests: <200ms (p95)
+- [ ] POST/PUT/DELETE: <500ms (p95)
+- [ ] Bulk operations: <2s (p95)
+
+#### Optimization Techniques
+- [ ] Use database indexes
+- [ ] Lazy load collections
+- [ ] Paginate large results
+- [ ] Cache frequently accessed data
+- [ ] Use projections for large entities
+- [ ] Batch database operations
+
+### Frontend Performance
+
+#### Bundle Size
+- [ ] Total bundle: <500KB gzipped
+- [ ] Code splitting for large features
+- [ ] Tree-shaking enabled
+- [ ] Remove unused dependencies
+
+#### Rendering Performance
+- [ ] Use React.memo for expensive components
+- [ ] Use useMemo for expensive calculations
+- [ ] Use useCallback for event handlers in lists
+- [ ] Virtualize long lists (react-window)
+- [ ] Optimize images (next/image)
+
+#### Network Performance
+- [ ] Prefetch critical data
+- [ ] Debounce search inputs
+- [ ] Cache API responses (TanStack Query)
+- [ ] Compress API responses
+
+## 8. Internationalization (i18n)
+
+### Backend
+- [ ] Error messages use MessageService
+- [ ] Accept-Language header respected
+- [ ] Locale fallback to English
+- [ ] No hardcoded user-facing strings
+
+### Frontend
+- [ ] All text uses `useTranslations` hook
+- [ ] Translation keys follow convention (errors.USER_100)
+- [ ] Locale switcher works
+- [ ] Date/time formatted per locale
+- [ ] Number/currency formatted per locale
+
+## 9. Accessibility (Frontend Only)
+
+- [ ] Semantic HTML (header, nav, main, footer)
+- [ ] ARIA labels on interactive elements
+- [ ] Keyboard navigation works
+- [ ] Focus indicators visible
+- [ ] Color contrast ≥4.5:1
+- [ ] Form errors announced to screen readers
+- [ ] Images have alt text
+
+## 10. Git & Documentation
+
+### Commit Standards
+- [ ] Commit message includes Feature ID (e.g., CRM-015)
+- [ ] Commit message format: `type: description` (feat, fix, refactor, test, docs)
+- [ ] Commits are atomic (one logical change per commit)
+
+### Documentation
+- [ ] Public APIs have JavaDoc/TSDoc
+- [ ] Complex logic has explanatory comments
+- [ ] README updated if public interface changed
+- [ ] Architecture Decision Records (ADRs) updated if architecture changed
+
+---
+
+## Scoring Rubric
+
+Each category scored out of 25 points:
+
+### Architecture Compliance (25 points)
+- Clean layering: 10 points
+- Service boundaries: 8 points
+- Dependency direction: 7 points
+
+### Code Quality (25 points)
+- Null safety: 7 points
+- Error handling: 8 points
+- Code smells: 5 points
+- Naming conventions: 5 points
+
+### Security (25 points)
+- Authentication/Authorization: 10 points
+- Input sanitization: 8 points
+- Secrets management: 7 points
+
+### Test Coverage (25 points)
+- Unit tests: 10 points
+- Integration tests: 8 points
+- Coverage thresholds: 7 points
+
+**Total Quality Score:** Sum of all categories (max 100)
+
+**Grading Scale:**
+- 90-100: Excellent (ready to merge)
+- 80-89: Good (minor improvements recommended)
+- 70-79: Acceptable (several improvements needed)
+- 60-69: Needs Work (significant issues)
+- <60: Major Rework Required (critical issues)
+
+---
+
+## Review Priorities
+
+When reviewing code, prioritize checks in this order:
+
+1. **Critical Security Issues** (SQL injection, XSS, authentication bypass)
+2. **Data Integrity Issues** (missing transactions, race conditions, N+1 queries)
+3. **Null Safety Issues** (potential NPE)
+4. **Error Handling Issues** (swallowed exceptions, missing error codes)
+5. **Architecture Violations** (layering, service boundaries)
+6. **Performance Issues** (missing indexes, inefficient queries)
+7. **Test Coverage Gaps** (changed code without tests)
+8. **Code Quality Issues** (smells, naming, duplication)
+9. **Documentation Gaps** (missing JavaDoc/TSDoc)
+10. **Style Issues** (formatting, minor conventions)

@@ -29,3 +29,8 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+backend/shared-lib/.settings/
+backend/crm-service/.settings/
+backend/auth-service/.settings/
+backend/.settings/
+backend/api-gateway/.settings/

@@ -1,5 +1,68 @@
-# Normalize text files
+# Git Attributes for SpringCRM
+
+# Ensure shell scripts use LF line endings (Unix-style)
+*.sh text eol=lf
+
+# Auto-detect text files and normalize line endings to LF on commit
 * text=auto
 
-# Shell scripts must use LF for Linux runners
-*.sh text eol=lf
+# Java source files
+*.java text eol=lf
+*.kt text eol=lf
+*.groovy text eol=lf
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+
+# Config files
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.properties text eol=lf
+*.conf text eol=lf
+*.config text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Generated code - mark as generated (for GitHub linguist)
+**/target/generated-sources/** linguist-generated=true
+**/target/generated-test-sources/** linguist-generated=true
+**/build/generated/** linguist-generated=true
+**/.next/** linguist-generated=true
+**/Q*.java linguist-generated=true
+
+# Binary files
+*.jar binary
+*.war binary
+*.ear binary
+*.zip binary
+*.tar.gz binary
+*.rar binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Images
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.webp binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary

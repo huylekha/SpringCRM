@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 
 public class ResourceNotFoundException extends BusinessException {
 
+  private static final long serialVersionUID = 1L;
+
   public ResourceNotFoundException(ErrorCode errorCode) {
     super(errorCode, HttpStatus.NOT_FOUND);
   }

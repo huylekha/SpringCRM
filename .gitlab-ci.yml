@@ -1,4 +1,5 @@
 stages:
+  - .pre
   - lint
   - test
   - build
@@ -15,6 +16,88 @@ variables:
 default:
   interruptible: true
   retry: 1
+
+# ---------- CHANGE DETECTION ----------
+
+detect_changes:
+  stage: .pre
+  image: alpine/git:latest
+  script:
+    - |
+      echo "Detecting changed services..."
+      
+      # Get the base ref for comparison
+      if [ "$CI_COMMIT_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+        # First commit in branch, compare with main
+        BASE_REF="origin/main"
+      else
+        BASE_REF="$CI_COMMIT_BEFORE_SHA"
+      fi
+      
+      echo "Comparing against: $BASE_REF"
+      
+      # Get changed files
+      CHANGED_FILES=$(git diff --name-only $BASE_REF..$CI_COMMIT_SHA || echo "")
+      
+      echo "Changed files:"
+      echo "$CHANGED_FILES"
+      
+      # Initialize flags
+      CHANGED_AUTH=false
+      CHANGED_CRM=false
+      CHANGED_GATEWAY=false
+      CHANGED_SHARED=false
+      CHANGED_FRONTEND=false
+      
+      # Analyze changes
+      for file in $CHANGED_FILES; do
+        case "$file" in
+          backend/shared-lib/*)
+            CHANGED_SHARED=true
+            ;;
+          backend/auth-service/*)
+            CHANGED_AUTH=true
+            ;;
+          backend/crm-service/*)
+            CHANGED_CRM=true
+            ;;
+          backend/api-gateway/*)
+            CHANGED_GATEWAY=true
+            ;;
+          frontend/*)
+            CHANGED_FRONTEND=true
+            ;;
+        esac
+      done
+      
+      # If shared-lib changed, all backend services are affected
+      if [ "$CHANGED_SHARED" = "true" ]; then
+        CHANGED_AUTH=true
+        CHANGED_CRM=true
+        CHANGED_GATEWAY=true
+      fi
+      
+      # Export to dotenv file for downstream jobs
+      echo "CHANGED_AUTH=$CHANGED_AUTH" >> detect.env
+      echo "CHANGED_CRM=$CHANGED_CRM" >> detect.env
+      echo "CHANGED_GATEWAY=$CHANGED_GATEWAY" >> detect.env
+      echo "CHANGED_SHARED=$CHANGED_SHARED" >> detect.env
+      echo "CHANGED_FRONTEND=$CHANGED_FRONTEND" >> detect.env
+      
+      echo ""
+      echo "📊 Change detection results:"
+      echo "  CHANGED_AUTH=$CHANGED_AUTH"
+      echo "  CHANGED_CRM=$CHANGED_CRM"
+      echo "  CHANGED_GATEWAY=$CHANGED_GATEWAY"
+      echo "  CHANGED_SHARED=$CHANGED_SHARED"
+      echo "  CHANGED_FRONTEND=$CHANGED_FRONTEND"
+  artifacts:
+    reports:
+      dotenv: detect.env
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 # ---------- LINT ----------
 
@@ -35,17 +118,59 @@ lint_frontend:
 
 # ---------- TEST ----------
 
-test_backend_unit:
+test_auth_service:
   stage: test
   image: maven:3.9-eclipse-temurin-21
   script:
     - cd backend
-    - mvn -B test
+    - mvn -B test -pl auth-service -am
   artifacts:
     when: always
     reports:
       junit:
-        - backend/**/target/surefire-reports/*.xml
+        - backend/auth-service/target/surefire-reports/*.xml
+  rules:
+    - if: $CHANGED_AUTH == "true"
+    - changes:
+      - backend/auth-service/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
+
+test_crm_service:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B test -pl crm-service -am
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/crm-service/target/surefire-reports/*.xml
+  rules:
+    - if: $CHANGED_CRM == "true"
+    - changes:
+      - backend/crm-service/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
+
+test_api_gateway:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B test -pl api-gateway -am
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/api-gateway/target/surefire-reports/*.xml
+  rules:
+    - if: $CHANGED_GATEWAY == "true"
+    - changes:
+      - backend/api-gateway/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
 
 test_backend_integration:
   stage: test
@@ -58,6 +183,11 @@ test_backend_integration:
     reports:
       junit:
         - backend/**/target/failsafe-reports/*.xml
+  rules:
+    - if: $CHANGED_AUTH == "true" || $CHANGED_CRM == "true" || $CHANGED_GATEWAY == "true" || $CHANGED_SHARED == "true"
+    - changes:
+      - backend/**/*
+  needs: ["detect_changes"]
 
 test_frontend_unit:
   stage: test
@@ -65,7 +195,21 @@ test_frontend_unit:
   script:
     - cd frontend
     - npm ci
-    - npm run test --if-present
+    - npm run test:coverage -- --run
+  artifacts:
+    when: always
+    paths:
+      - frontend/coverage
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+  coverage: '/Lines\s*:\s*(\d+\.?\d*)%/'
+  rules:
+    - if: $CHANGED_FRONTEND == "true"
+    - changes:
+      - frontend/**/*
+  needs: ["detect_changes"]
 
 test_frontend_e2e:
   stage: test
@@ -74,19 +218,64 @@ test_frontend_e2e:
     - cd frontend
     - npm ci
     - npm run test:e2e --if-present
+  rules:
+    - if: $CHANGED_FRONTEND == "true"
+    - changes:
+      - frontend/**/*
+  needs: ["detect_changes"]
 
 # ---------- BUILD ----------
 
-build_backend:
+build_auth_service:
   stage: build
   image: maven:3.9-eclipse-temurin-21
   script:
     - cd backend
-    - mvn -B -DskipTests clean package
+    - mvn -B -DskipTests clean package -pl auth-service -am
   artifacts:
     paths:
-      - backend/*/target/*.jar
+      - backend/auth-service/target/*.jar
     expire_in: 1 hour
+  rules:
+    - if: $CHANGED_AUTH == "true"
+    - changes:
+      - backend/auth-service/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
+
+build_crm_service:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B -DskipTests clean package -pl crm-service -am
+  artifacts:
+    paths:
+      - backend/crm-service/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CHANGED_CRM == "true"
+    - changes:
+      - backend/crm-service/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
+
+build_api_gateway:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B -DskipTests clean package -pl api-gateway -am
+  artifacts:
+    paths:
+      - backend/api-gateway/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CHANGED_GATEWAY == "true"
+    - changes:
+      - backend/api-gateway/**/*
+      - backend/shared-lib/**/*
+  needs: ["detect_changes"]
 
 build_frontend:
   stage: build
@@ -99,10 +288,15 @@ build_frontend:
     paths:
       - frontend/.next
     expire_in: 1 hour
+  rules:
+    - if: $CHANGED_FRONTEND == "true"
+    - changes:
+      - frontend/**/*
+  needs: ["detect_changes"]
 
 # ---------- DOCKER BUILD + PUSH ----------
 
-docker_build_and_push:
+docker_build_auth_service:
   stage: docker_build
   image: docker:27
   services:
@@ -110,13 +304,68 @@ docker_build_and_push:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build -t $CI_REGISTRY_IMAGE/auth-service:$IMAGE_TAG backend/auth-service
-    - docker build -t $CI_REGISTRY_IMAGE/crm-service:$IMAGE_TAG backend/crm-service
-    - docker build -t $CI_REGISTRY_IMAGE/api-gateway:$IMAGE_TAG backend/api-gateway
-    - docker build -t $CI_REGISTRY_IMAGE/frontend:$IMAGE_TAG frontend
     - docker push $CI_REGISTRY_IMAGE/auth-service:$IMAGE_TAG
+  rules:
+    - if: $CHANGED_AUTH == "true"
+    - changes:
+      - backend/auth-service/**/*
+      - backend/shared-lib/**/*
+  needs: 
+    - job: detect_changes
+    - job: build_auth_service
+
+docker_build_crm_service:
+  stage: docker_build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/crm-service:$IMAGE_TAG backend/crm-service
     - docker push $CI_REGISTRY_IMAGE/crm-service:$IMAGE_TAG
+  rules:
+    - if: $CHANGED_CRM == "true"
+    - changes:
+      - backend/crm-service/**/*
+      - backend/shared-lib/**/*
+  needs: 
+    - job: detect_changes
+    - job: build_crm_service
+
+docker_build_api_gateway:
+  stage: docker_build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/api-gateway:$IMAGE_TAG backend/api-gateway
     - docker push $CI_REGISTRY_IMAGE/api-gateway:$IMAGE_TAG
+  rules:
+    - if: $CHANGED_GATEWAY == "true"
+    - changes:
+      - backend/api-gateway/**/*
+      - backend/shared-lib/**/*
+  needs: 
+    - job: detect_changes
+    - job: build_api_gateway
+
+docker_build_frontend:
+  stage: docker_build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$IMAGE_TAG frontend
     - docker push $CI_REGISTRY_IMAGE/frontend:$IMAGE_TAG
+  rules:
+    - if: $CHANGED_FRONTEND == "true"
+    - changes:
+      - frontend/**/*
+  needs: 
+    - job: detect_changes
+    - job: build_frontend
 
 # ---------- DEPLOY ----------
 

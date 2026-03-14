@@ -109,6 +109,43 @@
     <build>
         <pluginManagement>
             <plugins>
+                <!-- Maven Compiler Plugin with Strict Warning Configuration -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>21</source>
+                        <target>21</target>
+                        <compilerArgs>
+                            <!-- Enable specific warnings only (not all) -->
+                            <arg>-Xlint:deprecation</arg>
+                            <arg>-Xlint:unchecked</arg>
+                            <arg>-Xlint:rawtypes</arg>
+                            <arg>-Xlint:cast</arg>
+                            <arg>-Xlint:divzero</arg>
+                            <arg>-Xlint:empty</arg>
+                            <arg>-Xlint:fallthrough</arg>
+                            <arg>-Xlint:finally</arg>
+                            <arg>-Xlint:overrides</arg>
+                            <!-- Treat warnings as errors -->
+                            <arg>-Werror</arg>
+                            <arg>-parameters</arg>
+                        </compilerArgs>
+                        <showWarnings>true</showWarnings>
+                        <showDeprecation>true</showDeprecation>
+                        <failOnWarning>true</failOnWarning>
+                        <!-- Configure annotation processors (Lombok) -->
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>1.18.34</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>

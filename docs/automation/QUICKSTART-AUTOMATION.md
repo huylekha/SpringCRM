@@ -475,6 +475,499 @@ curl https://abc123.ngrok-free.app
 
 ---
 
+## 🔒 Strict Mode Workflow (Advanced)
+
+### Overview
+
+**Strict Mode** thực thi tests và coverage checks **tại local** trước khi commit, đảm bảo code quality cao nhất.
+
+**Khi nào dùng?**
+- ✅ Development environment: Máy dev với đủ tài nguyên
+- ✅ Critical features: Code liên quan tới security, payment, data integrity
+- ✅ Team standards: Yêu cầu zero defect trước khi push
+
+**Trade-off**:
+- ⏱️ Commit time: 30 giây - 2 phút (tùy service)
+- ✅ Quality: Tests run local, catch bugs sớm nhất
+- 💰 CI cost: Giảm CI failures, tiết kiệm CI minutes
+
+### How It Works
+
+**Pre-commit Hook** (`.husky/pre-commit`):
+1. **Detect changes**: Phân tích staged files để biết service nào thay đổi
+2. **Run tests**: Chỉ test services đã thay đổi (không test all)
+3. **Check coverage**: JaCoCo (backend) và Vitest (frontend) enforce thresholds
+4. **Abort if fail**: Commit bị block nếu tests fail hoặc coverage thấp
+
+**Selective Testing**:
+```
+backend/auth-service/**      → Test auth-service only
+backend/crm-service/**       → Test crm-service only
+backend/api-gateway/**       → Test api-gateway only
+backend/shared-lib/**        → Test ALL backend services (vì shared)
+frontend/**                  → Test frontend only
+```
+
+### Expected Commit Times
+
+| Change Scope | Time | Tests Run |
+|-------------|------|-----------|
+| Frontend only | 30-60s | Frontend unit tests + coverage |
+| Single backend service | 45-90s | Service unit tests + JaCoCo |
+| Multiple services | 1-2 min | All changed services |
+| Shared-lib change | 2-3 min | ALL backend services (vì shared-lib affects all) |
+
+### Example Workflow
+
+**Scenario 1: Thay đổi auth-service**
+```bash
+# Edit file
+vim backend/auth-service/src/.../UserService.java
+
+# Add tests
+vim backend/auth-service/src/test/.../UserServiceTest.java
+
+# Commit (strict hook tự chạy)
+git add .
+git commit -m "feat(auth): add user profile endpoint [AUTH-023]"
+
+# Output từ pre-commit:
+# 🔒 STRICT MODE: Running comprehensive pre-commit checks...
+# 
+# 📊 Changed services detected:
+#   ✓ auth-service
+# 
+# 📦 Backend changes detected, running strict checks...
+# 
+# ▶️  Checking code formatting with Spotless...
+#    ✓ Formatting passed
+# 
+# ▶️  Testing auth-service with coverage...
+#    ✓ auth-service tests passed with coverage
+# 
+# ✅ All backend checks passed!
+# ✨ All strict pre-commit checks passed!
+```
+
+**Scenario 2: Thay đổi shared-lib** (impacts tất cả services)
+```bash
+# Edit shared error handling
+vim backend/shared-lib/src/.../exception/ErrorCode.java
+
+git add .
+git commit -m "refactor(shared): add new error codes [CRM-100]"
+
+# Output:
+# 📊 Changed services detected:
+#   ✓ auth-service
+#   ✓ crm-service
+#   ✓ api-gateway
+#   ✓ shared-lib (affects all backend)
+# 
+# ▶️  Testing auth-service with coverage...
+#    ✓ auth-service tests passed
+# ▶️  Testing crm-service with coverage...
+#    ✓ crm-service tests passed
+# ▶️  Testing api-gateway with coverage...
+#    ✓ api-gateway tests passed
+# 
+# Time: ~2-3 minutes (tests 3 services)
+```
+
+### Coverage Thresholds
+
+**Backend (JaCoCo)**:
+- Line coverage: **80%** minimum
+- Branch coverage: **75%** minimum
+
+**Frontend (Vitest)**:
+- Lines: **75%** minimum
+- Branches: **70%** minimum
+- Functions: **70%** minimum
+- Statements: **70%** minimum
+
+**Nếu coverage thấp**:
+```bash
+# Backend: See detailed coverage report
+cd backend
+mvn jacoco:report
+# Open: backend/<service>/target/site/jacoco/index.html
+
+# Frontend: See detailed coverage report
+cd frontend
+npm run test:coverage
+# Open: frontend/coverage/index.html
+```
+
+### Emergency Bypass
+
+**Khi nào dùng?**
+- 🚨 Hotfix critical bug trong production
+- ⏰ Urgent deployment cần ship ngay
+- 🔧 Fix CI config (không cần test)
+
+**Cách dùng**:
+```bash
+# Skip ALL pre-commit hooks (logged for audit)
+SKIP_HOOKS=1 git commit -m "hotfix: fix payment crash [URGENT]"
+
+# Hook sẽ log bypass vào .git/hooks-bypass.log:
+# [2026-03-14 10:30:45] User: dev@company.com | Branch: main | SKIP_HOOKS=1
+#   Staged files:
+#     - backend/payment-service/src/.../PaymentService.java
+```
+
+**⚠️ Warning**:
+- Bypass được log để audit
+- CI vẫn chạy full tests
+- Chỉ dùng khi **thực sự cần thiết**
+
+---
+
+## 🤖 AI Code Review
+
+### Overview
+
+**AI Code Review** phân tích tất cả Git changes và đưa ra báo cáo quality toàn diện trước khi commit.
+
+**Kiểm tra gì?**
+- ✅ Architecture compliance (AD-001..014)
+- ✅ Code quality (null safety, error handling, transactions)
+- ✅ Security (SQL injection, XSS, auth checks)
+- ✅ Performance (N+1 queries, missing indexes)
+- ✅ Test coverage (missing tests for changed logic)
+
+### Trigger Modes
+
+#### Auto-Review (Recommended)
+
+AI tự động review sau khi code xong:
+```
+[You finish implementing feature]
+
+AI: "I've completed the user registration feature. 
+     Would you like me to review the changes? (yes/no/skip)"
+
+[You type: yes]
+
+AI: [Analyzes git diff]
+    [Generates detailed report]
+    "Review complete! Found 1 warning in UserController.java - 
+     missing input validation on email field. Should I fix it?"
+```
+
+#### Manual Review
+
+**Full review** (all changes):
+```bash
+# Trong chat Cursor, gõ:
+#Review
+
+# AI sẽ:
+# 1. Analyze git diff (staged + unstaged)
+# 2. Check architecture compliance
+# 3. Find security/performance issues
+# 4. Generate report với code examples
+```
+
+**Backend-only review**:
+```bash
+#ReviewBE
+
+# Chỉ review backend changes
+# Bỏ qua frontend/docs/config
+```
+
+**Frontend-only review**:
+```bash
+#ReviewFE
+
+# Chỉ review frontend changes
+# Bỏ qua backend files
+```
+
+### Review Report Structure
+
+```markdown
+# Code Review Report
+
+**Quality Score:** 92/100
+- Architecture Compliance: 24/25
+- Code Quality: 23/25
+- Security: 23/25
+- Test Coverage: 22/25
+
+## Changed Services & Files
+### Backend Services
+- auth-service (3 files)
+  - UserController.java
+  - UserService.java
+  - UserServiceTest.java
+
+## 🔴 Critical Issues (Must Fix Before Commit)
+
+#### Issue 1: Missing Input Validation
+**File:** `backend/auth-service/.../UserController.java:45`
+**Category:** Security
+
+**Problem:**
+Email parameter not validated, potential for invalid data.
+
+**Current Code:**
+```java
+@PostMapping("/register")
+public ResponseEntity<UserResponse> register(@RequestBody CreateUserRequest request) {
+    return userService.createUser(request);
+}
+```
+
+**Fix:**
+```java
+@PostMapping("/register")
+public ResponseEntity<UserResponse> register(@Valid @RequestBody CreateUserRequest request) {
+    return userService.createUser(request);
+}
+```
+
+## 🟡 Warnings (Should Fix)
+[List of non-critical issues]
+
+## Next Steps
+1. Fix critical issue in UserController.java
+2. Re-run review: Type #Review
+3. Proceed to commit when clean
+```
+
+### Acting on Review Findings
+
+**Option 1: Fix Issues Yourself**
+```bash
+# Read report
+# Make changes manually
+# Re-run review
+#Review
+
+# AI: "All issues resolved! Ready to commit."
+```
+
+**Option 2: Ask AI to Fix**
+```
+You: "Fix issue 1 in UserController.java"
+
+AI: [Reads file]
+    [Applies fix]
+    "Fixed! Added @Valid annotation and input validation."
+    
+You: "#Review"  # Verify fix
+
+AI: "Review clean! No critical issues."
+```
+
+**Option 3: Proceed Anyway (with bypass)**
+```bash
+# If you understand the risk
+SKIP_HOOKS=1 git commit -m "feat: user registration [AUTH-023]"
+
+# Note: CI will still catch issues
+```
+
+### Integration with Strict Mode
+
+**Recommended workflow**:
+```
+1. Code feature
+2. AI auto-review (or manual #Review)
+3. Fix critical issues
+4. git add .
+5. git commit (strict pre-commit runs tests)
+6. git push (CI runs full pipeline)
+```
+
+**Timeline**:
+- AI Review: 30-60 seconds (analysis + report)
+- Pre-commit: 30s-2min (tests + coverage)
+- CI Pipeline: 5-10 minutes (full validation)
+
+**Total time**: ~10 minutes from code complete to merged
+**Quality**: Near-zero defects reach production
+
+### Customizing Auto-Review
+
+**Disable auto-review** (if you prefer manual only):
+```bash
+# Add to .bashrc hoặc .zshrc:
+export AUTO_REVIEW=false
+
+# AI sẽ không tự review, phải dùng #Review
+```
+
+**Enable for critical files only**:
+- AI tự detect critical changes (security, payments, auth)
+- Luôn trigger auto-review cho những files này
+- File bình thường: manual review only
+
+---
+
+## 📊 Selective CI Pipeline
+
+### How It Works
+
+**CI chỉ test services có code thay đổi**, tiết kiệm thời gian và CI resources.
+
+**GitLab CI stages**:
+```
+.pre: detect_changes          # Phân tích git diff
+ ↓
+lint: lint_backend/frontend   # Always run (fast)
+ ↓
+test: test_auth/crm/gateway   # Conditional (based on changes)
+ ↓
+build: build_auth/crm/gateway # Conditional
+ ↓
+docker_build: docker_*        # Conditional
+ ↓
+deploy: deploy_staging/prod   # Manual
+```
+
+### Change Detection
+
+**detect_changes job** (`.pre` stage):
+```bash
+# Compares: git diff $CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA
+
+# Sets environment variables:
+CHANGED_AUTH=true/false
+CHANGED_CRM=true/false
+CHANGED_GATEWAY=true/false
+CHANGED_SHARED=true/false    # If true, all backend affected
+CHANGED_FRONTEND=true/false
+```
+
+**Downstream jobs check flags**:
+```yaml
+test_auth_service:
+  rules:
+    - if: $CHANGED_AUTH == "true"
+    - changes:
+      - backend/auth-service/**/*
+```
+
+### Pipeline Examples
+
+**Example 1: Change auth-service only**
+```
+✅ detect_changes (sets CHANGED_AUTH=true)
+✅ lint_backend (always)
+✅ lint_frontend (always)
+✅ test_auth_service (conditional: run)
+⏭️  test_crm_service (skipped)
+⏭️  test_api_gateway (skipped)
+⏭️  test_frontend (skipped)
+✅ build_auth_service (conditional: run)
+⏭️  build_crm/gateway/frontend (skipped)
+
+Total time: ~3 minutes (vs 10+ for full pipeline)
+```
+
+**Example 2: Change shared-lib**
+```
+✅ detect_changes (sets CHANGED_SHARED=true → all backend=true)
+✅ lint_backend
+✅ lint_frontend
+✅ test_auth_service (conditional: run)
+✅ test_crm_service (conditional: run)
+✅ test_api_gateway (conditional: run)
+⏭️  test_frontend (skipped)
+✅ build_auth_service
+✅ build_crm_service
+✅ build_api_gateway
+⏭️  build_frontend (skipped)
+
+Total time: ~8 minutes (all backend, skip frontend)
+```
+
+**Example 3: Change frontend only**
+```
+✅ detect_changes (sets CHANGED_FRONTEND=true)
+✅ lint_backend
+✅ lint_frontend
+⏭️  test_auth/crm/gateway (skipped)
+✅ test_frontend (conditional: run)
+⏭️  build_auth/crm/gateway (skipped)
+✅ build_frontend (conditional: run)
+
+Total time: ~2 minutes (frontend only)
+```
+
+### Benefits
+
+**Time Savings**:
+- Frontend-only changes: **80% faster** (2 min vs 10 min)
+- Single backend service: **70% faster** (3 min vs 10 min)
+- Multiple services: **30-50% faster** (5-7 min vs 10 min)
+
+**Cost Savings**:
+- Fewer CI minutes used
+- Less queue time on shared runners
+- Faster feedback loop
+
+**Always-Run Jobs** (fast, critical):
+- `lint_backend` - Maven validate (10s)
+- `lint_frontend` - ESLint (15s)
+- `detect_changes` - Git diff analysis (5s)
+
+---
+
+## 📋 Daily Workflow (Updated)
+
+**Trước khi code**:
+```bash
+# 1. Start SonarQube (nếu chưa chạy)
+cd devops/sonarqube
+docker-compose up -d
+
+# 2. Start ngrok (Terminal riêng, GIỮ MỞ)
+ngrok http 9000
+
+# 3. Copy URL ngrok (nếu restart)
+# https://abc123.ngrok-free.app
+```
+
+**Khi code**:
+```bash
+# Code như bình thường
+# AI auto-review hoặc manual #Review khi xong
+git add .
+git commit -m "feat: new feature [CRM-001]"
+# Strict pre-commit runs (30s-2min)
+git push
+# Selective CI runs (2-10min depending on changes)
+```
+
+**Workflow hoàn chỉnh**:
+```
+Code → AI Review → Fix Issues → Pre-commit Tests → CI Pipeline → Deploy
+  ↓         ↓           ↓              ↓                ↓           ↓
+30min   30-60s      5-10min        30s-2min         2-10min    Manual
+```
+
+**CI tự động chạy**:
+1. ✅ Detect changes (5s)
+2. ✅ Lint + validate specs (20s)
+3. ✅ Unit tests (conditional, 1-5min)
+4. ✅ Coverage checks (80%+ backend, 75%+ frontend)
+5. ✅ SonarQube quality analysis (conditional)
+6. ✅ Security scans (OWASP + npm audit, conditional)
+7. ✅ Build + Docker images (conditional)
+8. ✅ Deploy (manual trigger)
+
+**Xem kết quả**:
+- GitLab: CI/CD > Pipelines
+- SonarQube: `https://abc123.ngrok-free.app` > Projects
+- Coverage: Pipeline artifacts > coverage reports
+
+---
+
 ## 🆘 Cần Giúp?
 
 1. **Setup issues**: Đọc `docs/automation-setup-guide.md`
