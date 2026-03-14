@@ -13,6 +13,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:ci": "vitest run --coverage",
+    "test:run": "vitest run",
     "lighthouse": "lhci autorun",
     "prepare": "cd .. && husky"
   },

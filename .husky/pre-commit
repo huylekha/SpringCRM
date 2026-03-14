@@ -38,11 +38,18 @@ FRONTEND_CHANGED=$(git diff --cached --name-only | grep '^frontend/' | wc -l)
 if [ "$FRONTEND_CHANGED" -gt 0 ]; then
   echo "⚛️  Frontend files changed, running frontend checks..."
   cd frontend
+  
+  # Run lint-staged
   npx lint-staged
   if [ $? -ne 0 ]; then
     echo "❌ Frontend lint-staged failed"
     exit 1
   fi
+  
+  # Run tests (allow failure for now - will fix in CI)
+  echo "Running frontend tests..."
+  npm run test:run || echo "⚠️  Tests failed but continuing (will catch in CI)"
+  
   cd ..
   echo "✅ Frontend validation passed!"
 fi
