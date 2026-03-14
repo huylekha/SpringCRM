@@ -1,0 +1,926 @@
+---
+description: AI-optimized BA Feature Specification template for generating production-ready code from business requirements
+alwaysApply: false
+---
+
+# BA Feature Specification Template (AI-Optimized)
+
+## When to Apply
+
+Apply this rule when:
+- Prompt contains `#BA` followed by feature description
+- User requests "feature spec", "write specification", "BA document", "business analysis"
+- Complex feature requires detailed specification for AI code generation
+
+## Role Context
+
+You are a Senior Enterprise Business Analyst for the SpringCRM platform. Your mission is to translate business requirements into structured Feature Specifications that enable AI developers to automatically generate 90-95% of production-ready code.
+
+## Target Stack Context
+
+**Backend:**
+- Spring Boot 3.x
+- Java 21
+- PostgreSQL (MySQL compatibility layer via profiles)
+- REST API
+- Spring Security with JWT
+- QueryDSL for dynamic search
+- OpenFeign for service integration
+
+**Frontend:**
+- Next.js (App Router)
+- React 18+
+- TypeScript
+- TanStack Query (React Query)
+- Zustand (state management)
+- React Hook Form + Zod (validation)
+- shadcn/ui + Tailwind CSS
+
+**Platform Standards:**
+- Architecture Decisions: AD-001 through AD-014 (see docs/summary.md)
+- RBAC: Role-based data-scope (ALL/TEAM/OWN) from docs/architecture/rbac-model.md
+- Error System: Multi-language error codes from spring-nextjs-multi-language-error-system.mdc
+- Observability: Structured logging + distributed tracing from spring-nextjs-observability-tracing-system.mdc
+
+## Feature Specification Structure (17 Mandatory Sections)
+
+### 1. Feature Metadata
+
+**Required Fields:**
+- **Feature Name**: Clear, concise name (e.g., "Customer Import", "Lead Scoring")
+- **Feature ID**: Format `{MODULE}-{NUMBER}` (e.g., `CRM-015`, `AUTH-008`)
+- **Version**: Semantic version (e.g., `v1.0`)
+- **Owner Team**: Backend, Frontend, or Fullstack
+- **Priority**: CRITICAL / HIGH / MEDIUM / LOW
+- **Status**: DRAFT / REVIEW / APPROVED / IMPLEMENTED
+
+**Description:**
+1-2 paragraph explanation of the feature and its business value.
+
+**Business Goal:**
+Explicit statement of the business outcome this feature delivers.
+
+**Example:**
+```markdown
+## 1. Feature Metadata
+
+Feature Name: Customer Bulk Import
+Feature ID: CRM-015
+Version: v1.0
+Owner Team: Fullstack
+Priority: HIGH
+Status: DRAFT
+
+Description:
+Enable CRM administrators to import multiple customer records via CSV/Excel upload.
+Supports validation, duplicate detection, and batch processing for efficiency.
+
+Business Goal:
+Reduce customer onboarding time from 5 minutes per record (manual entry) to <10 seconds 
+per record (bulk import), enabling sales teams to migrate legacy CRM data quickly.
+```
+
+---
+
+### 2. Actors
+
+List all users or systems interacting with this feature.
+
+**Format:**
+| Actor | Role Code | Description |
+|---|---|---|
+| ... | ... | ... |
+
+**Trace to RBAC:**
+Reference role definitions from `docs/architecture/rbac-model.md` for permission alignment.
+
+**Example:**
+```markdown
+## 2. Actors
+
+| Actor | Role Code | Description |
+|---|---|---|
+| CRM Administrator | CRM_ADMIN | Initiates import, reviews validation errors, approves batch |
+| System Scheduler | SYSTEM | Processes import job asynchronously |
+| Sales Manager | SALES_MANAGER | Views import history and success metrics |
+```
+
+---
+
+### 3. Business Context
+
+Explain the scenario where this feature is used.
+
+**Include:**
+- **When**: What triggers the need for this feature?
+- **Why**: What problem does it solve?
+- **System Boundaries**: Which services are involved? What is out of scope?
+
+**Example:**
+```markdown
+## 3. Business Context
+
+**When:**
+CRM Admin receives a customer list (CSV) from legacy CRM or partner integration.
+
+**Why:**
+Manual entry of 500+ customers takes 40+ hours. Bulk import reduces this to <1 hour including validation.
+
+**System Boundaries:**
+- In Scope: crm-service (customer creation), file-service (upload/parse), notification-service (status alerts)
+- Out of Scope: Real-time streaming import (batch only), Excel macro support, custom field mapping beyond standard columns
+```
+
+---
+
+### 4. Business Flow
+
+Describe the complete workflow step-by-step.
+
+**Format:**
+```
+Step 1: [Actor action]
+Step 2: [System response]
+...
+```
+
+**Example:**
+```markdown
+## 4. Business Flow
+
+Step 1: User (CRM_ADMIN) uploads CSV file via frontend form
+Step 2: System validates file format (CSV, max 10MB, required columns present)
+Step 3: System parses file and performs row-level validation
+Step 4: System displays validation summary (total rows, valid, invalid, duplicates)
+Step 5: User reviews errors and chooses: Fix & Re-upload OR Proceed with valid rows only
+Step 6: System creates background job for batch customer creation
+Step 7: System processes rows in batches of 100, creating customer records
+Step 8: System sends notification on completion (success count, failure count)
+Step 9: User views import history with downloadable error report
+```
+
+---
+
+### 5. API Contract
+
+Define all API endpoints required for this feature.
+
+**For Each Endpoint Include:**
+- Endpoint path and HTTP method
+- Description
+- Request DTO structure (JSON example)
+- Response DTO structure (JSON example)
+- HTTP status codes
+- Error codes (trace to error system)
+
+**Architecture Standards:**
+- Follow AD-005: DTOs only, never expose entities
+- Follow AD-011: GET for simple lists, POST /search for complex filters
+- Follow AD-012: Unified error envelope format
+
+**Example:**
+```markdown
+## 5. API Contract
+
+### 5.1 Upload Customer Import File
+
+**Endpoint:** `POST /api/crm/customers/import/upload`
+**Method:** POST (multipart/form-data)
+**Description:** Upload CSV file and validate format
+
+**Request:**
+```
+Content-Type: multipart/form-data
+file: [CSV file binary]
+```
+
+**Response (Success):**
+```json
+{
+  "upload_id": "uuid-123",
+  "file_name": "customers.csv",
+  "total_rows": 500,
+  "valid_rows": 485,
+  "invalid_rows": 15,
+  "duplicate_rows": 5,
+  "validation_errors": [
+    {"row": 12, "field": "email", "message": "Invalid email format"},
+    {"row": 45, "field": "customer_code", "message": "Duplicate customer_code"}
+  ],
+  "status": "VALIDATED"
+}
+```
+
+**Status Codes:**
+- 200: Validation complete
+- 400: Invalid file format (CRM_400)
+- 413: File too large (CRM_401)
+- 422: All rows invalid (CRM_402)
+
+---
+
+### 5.2 Execute Import Job
+
+**Endpoint:** `POST /api/crm/customers/import/execute`
+**Method:** POST
+**Description:** Start background job to create customer records
+
+**Request:**
+```json
+{
+  "upload_id": "uuid-123",
+  "mode": "VALID_ONLY"  // or "ALL"
+}
+```
+
+**Response:**
+```json
+{
+  "job_id": "uuid-456",
+  "status": "QUEUED",
+  "estimated_duration_seconds": 120
+}
+```
+
+**Status Codes:**
+- 202: Job queued
+- 404: Upload ID not found (CRM_100)
+- 409: Job already running for this upload (CRM_403)
+```
+
+---
+
+### 6. Validation Rules
+
+List validation constraints for all input fields.
+
+**Format:**
+| Field | Rule | Error Code |
+|---|---|---|
+| ... | ... | ... |
+
+**Architecture Standards:**
+- Use Bean Validation annotations (`@NotBlank`, `@Email`, `@Size`)
+- Reference error codes from multi-language error system
+- Align with database constraints from `docs/data/database-schema.md`
+
+**Example:**
+```markdown
+## 6. Validation Rules
+
+| Field | Rule | Error Code |
+|---|---|---|
+| customer_code | Required, unique, max 50 chars, alphanumeric only | CRM_CUSTOMER_CODE_REQUIRED, CRM_CUSTOMER_CODE_DUPLICATE |
+| full_name | Required, max 200 chars | CRM_CUSTOMER_NAME_REQUIRED |
+| email | Optional, valid email format if provided | CRM_CUSTOMER_EMAIL_INVALID |
+| phone | Optional, valid phone format if provided | CRM_CUSTOMER_PHONE_INVALID |
+| owner_user_id | Required, must reference active user | CRM_CUSTOMER_OWNER_INVALID |
+| status | Must be one of: ACTIVE, INACTIVE | CRM_CUSTOMER_STATUS_INVALID |
+```
+
+---
+
+### 7. Domain Model
+
+Define all entities required for this feature.
+
+**For Each Entity Include:**
+- Entity name
+- Fields with types
+- Relationships
+- Audit fields (per AD-008)
+
+**Architecture Standards:**
+- UUID primary keys (AD-007)
+- Audit columns: created_at, created_by, updated_at, updated_by
+- Soft delete: deleted (boolean), deleted_at (timestamp)
+- Trace to database-schema.md conventions
+
+**Example:**
+```markdown
+## 7. Domain Model
+
+### CustomerImportJob
+
+**Table:** `crm_customer_import_jobs`
+
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | UUID | PK | Job identifier |
+| upload_id | UUID | NOT NULL | Reference to uploaded file metadata |
+| initiated_by | UUID | NOT NULL | User ID who started job |
+| total_rows | INTEGER | NOT NULL | Total rows in file |
+| processed_rows | INTEGER | DEFAULT 0 | Rows processed so far |
+| success_count | INTEGER | DEFAULT 0 | Successfully created customers |
+| failure_count | INTEGER | DEFAULT 0 | Failed rows |
+| status | VARCHAR(30) | NOT NULL | QUEUED, PROCESSING, COMPLETED, FAILED |
+| error_report_url | VARCHAR(500) | NULL | Link to downloadable error CSV |
+| started_at | TIMESTAMP | NULL | Job start time |
+| completed_at | TIMESTAMP | NULL | Job completion time |
+| created_at | TIMESTAMP | NOT NULL | Audit field |
+| created_by | UUID | NOT NULL | Audit field |
+| updated_at | TIMESTAMP | NULL | Audit field |
+| updated_by | UUID | NULL | Audit field |
+
+**Indexes:**
+- idx_import_jobs_status (status)
+- idx_import_jobs_initiated_by (initiated_by)
+- idx_import_jobs_created_at (created_at)
+```
+
+---
+
+### 8. State Machine
+
+Define lifecycle states of the main entity and allowed transitions.
+
+**Format:**
+- List all states
+- Define allowed transitions
+- Specify forbidden transitions
+- Map transitions to permissions
+
+**Example:**
+```markdown
+## 8. State Machine: CustomerImportJob
+
+**States:**
+- QUEUED: Job accepted, waiting for execution
+- PROCESSING: Job actively creating customer records
+- COMPLETED: All rows processed successfully
+- PARTIAL_SUCCESS: Some rows succeeded, some failed
+- FAILED: Job aborted due to system error
+
+**Allowed Transitions:**
+- QUEUED → PROCESSING (when worker picks up job)
+- PROCESSING → COMPLETED (all rows succeeded)
+- PROCESSING → PARTIAL_SUCCESS (some rows failed)
+- PROCESSING → FAILED (system error, rollback)
+
+**Forbidden Transitions:**
+- COMPLETED → any other state (immutable terminal state)
+- FAILED → PROCESSING (no retry from FAILED; must create new job)
+
+**Permission Guards:**
+- Only CRM_ADMIN or job owner can view job status
+- Only SYSTEM can transition job states
+```
+
+---
+
+### 9. External Integrations
+
+List all external services or APIs required.
+
+**For Each Integration Include:**
+- Service name
+- Endpoint(s)
+- Purpose
+- Timeout configuration
+- Retry policy
+- Fallback behavior
+
+**Architecture Standards:**
+- Use OpenFeign clients (AD-011 backend integration pattern)
+- Apply resilience patterns from spring-resilience.mdc
+- Configure circuit breaker + retry
+
+**Example:**
+```markdown
+## 9. External Integrations
+
+### 9.1 File Storage Service
+
+**Service:** file-service
+**Endpoint:** `POST /api/files/upload`
+**Purpose:** Store uploaded CSV file and error report CSV
+**Timeout:** 10 seconds
+**Retry Policy:** 3 attempts with exponential backoff (1s, 2s, 4s)
+**Fallback:** Return error to user if all retries fail
+
+---
+
+### 9.2 Notification Service
+
+**Service:** notification-service
+**Endpoint:** `POST /api/notifications/send`
+**Purpose:** Send email/SMS notification on job completion
+**Timeout:** 5 seconds
+**Retry Policy:** 3 attempts
+**Fallback:** Log failure, do not block job completion
+```
+
+---
+
+### 10. Event Flow (if applicable)
+
+Define system events emitted during the workflow (event-driven architecture).
+
+**Format:**
+- Event name
+- Payload structure
+- When emitted
+- Subscribers
+
+**Example:**
+```markdown
+## 10. Event Flow
+
+### Event: customer.import.started
+
+**Payload:**
+```json
+{
+  "job_id": "uuid-456",
+  "initiated_by": "user-uuid",
+  "total_rows": 500,
+  "timestamp": "2026-03-13T10:00:00Z"
+}
+```
+
+**When:** Job transitions to PROCESSING state
+**Subscribers:** monitoring-service (metrics), audit-service (compliance log)
+
+---
+
+### Event: customer.import.completed
+
+**Payload:**
+```json
+{
+  "job_id": "uuid-456",
+  "success_count": 485,
+  "failure_count": 15,
+  "duration_seconds": 120,
+  "timestamp": "2026-03-13T10:02:00Z"
+}
+```
+
+**When:** Job transitions to COMPLETED or PARTIAL_SUCCESS
+**Subscribers:** notification-service (send alert), analytics-service (report)
+```
+
+---
+
+### 11. Error Codes
+
+Define standardized error codes following the platform error system.
+
+**Format:**
+| Error Code | HTTP Status | Message (English) | When |
+|---|---|---|---|
+| ... | ... | ... | ... |
+
+**Architecture Standards:**
+- Follow spring-nextjs-multi-language-error-system.mdc
+- Register codes in backend ErrorCode enum
+- Add translations in all supported languages (en, vi, ja, zh)
+
+**Example:**
+```markdown
+## 11. Error Codes
+
+| Error Code | HTTP Status | Message (English) | When |
+|---|---|---|---|
+| CRM_400 | 400 | Invalid file format. Expected CSV with headers. | File is not CSV or missing headers |
+| CRM_401 | 413 | File size exceeds maximum allowed (10MB). | File > 10MB |
+| CRM_402 | 422 | All rows in file are invalid. Please fix and re-upload. | 100% validation failure rate |
+| CRM_403 | 409 | Import job already running for this upload. | Duplicate execute request |
+| CRM_404 | 404 | Upload ID not found or expired. | upload_id doesn't exist |
+| CRM_CUSTOMER_CODE_DUPLICATE | 422 | Customer code already exists. | Duplicate customer_code in DB |
+| CRM_CUSTOMER_OWNER_INVALID | 422 | Owner user ID does not exist or is inactive. | owner_user_id FK violation |
+```
+
+---
+
+### 12. Observability
+
+Define logs, metrics, and traces for monitoring and debugging.
+
+**Architecture Standards:**
+- Follow spring-nextjs-observability-tracing-system.mdc
+- Use structured JSON logging
+- Include trace_id in all logs
+- Define custom metrics for business KPIs
+
+**Example:**
+```markdown
+## 12. Observability
+
+### Logs
+
+**Format:** Structured JSON with trace_id
+
+**Key Log Events:**
+- `customer_import_upload_received` (INFO): File uploaded, validation started
+- `customer_import_validation_completed` (INFO): Validation summary
+- `customer_import_job_started` (INFO): Background job started
+- `customer_import_job_completed` (INFO): Job finished with counts
+- `customer_import_job_failed` (ERROR): Job aborted, include error details
+
+**Example Log:**
+```json
+{
+  "timestamp": "2026-03-13T10:00:00Z",
+  "level": "INFO",
+  "logger": "CustomerImportService",
+  "message": "customer_import_job_started",
+  "trace_id": "abc123",
+  "job_id": "uuid-456",
+  "total_rows": 500,
+  "initiated_by": "user-uuid"
+}
+```
+
+---
+
+### Metrics
+
+**Custom Metrics:**
+- `customer_import_upload_count` (Counter): Total uploads
+- `customer_import_job_duration_seconds` (Histogram): Job processing time
+- `customer_import_success_rate` (Gauge): success_count / total_rows
+- `customer_import_rows_per_second` (Gauge): Processing throughput
+
+---
+
+### Tracing
+
+**Spans:**
+- `uploadCustomerImportFile`: File upload + validation
+- `executeCustomerImportJob`: Job orchestration
+- `createCustomerBatch`: Batch insert operation (repeated per batch)
+
+**Span Attributes:**
+- `job_id`, `upload_id`, `total_rows`, `batch_size`
+```
+
+---
+
+### 13. Security Requirements
+
+Define authentication, authorization, and security controls.
+
+**Architecture Standards:**
+- Follow spring-security.mdc
+- Reference RBAC from docs/architecture/rbac-model.md
+- Apply data-scope rules (ALL/TEAM/OWN)
+
+**Example:**
+```markdown
+## 13. Security Requirements
+
+### Authentication
+- All endpoints require valid JWT token
+- Token must contain `roles` claim
+
+### Authorization (RBAC)
+| Endpoint | Required Permission | Data Scope |
+|---|---|---|
+| POST /import/upload | customer:create | N/A (upload accessible to role holder) |
+| POST /import/execute | customer:create | N/A |
+| GET /import/jobs | customer:read | OWN (SALES_REP), TEAM (SALES_MANAGER), ALL (CRM_ADMIN+) |
+| GET /import/jobs/{id} | customer:read | OWN/TEAM/ALL per role |
+
+### Input Validation
+- File upload: whitelist CSV extension, scan for malicious content
+- CSV parsing: sanitize input to prevent CSV injection
+- Rate limiting: Max 5 uploads per user per hour
+
+### Data Protection
+- Mask sensitive fields (email, phone) in error reports for AUDITOR role
+- Delete uploaded files after 7 days
+```
+
+---
+
+### 14. Performance Requirements
+
+Define expected system performance and scalability targets.
+
+**Example:**
+```markdown
+## 14. Performance Requirements
+
+### Response Time (p95)
+- File upload endpoint: < 500ms (for 10MB file)
+- Job execute endpoint: < 200ms (async job queued)
+- Job status endpoint: < 100ms
+
+### Throughput
+- Support 50 concurrent uploads
+- Process 1000 rows per minute per job
+- Max concurrent jobs: 10
+
+### Resource Limits
+- Max file size: 10MB
+- Max rows per file: 10,000
+- Batch size for DB insert: 100 rows per transaction
+
+### Timeout Configuration
+- File upload timeout: 30 seconds
+- Job execution timeout: 30 minutes (fail if exceeded)
+- External API timeout: 10 seconds
+```
+
+---
+
+### 15. Frontend UI Specification
+
+Define UI requirements, components, and user interactions.
+
+**Include:**
+- Page/component names
+- User interactions
+- UI states (loading, success, error)
+- Form fields and validation messages
+
+**Example:**
+```markdown
+## 15. Frontend UI Specification
+
+### Page: Customer Import
+
+**Route:** `/crm/customers/import`
+**Access:** CRM_ADMIN only
+
+---
+
+### Components
+
+#### 1. FileUploadForm
+**Fields:**
+- File input (CSV only, max 10MB)
+- Upload button
+
+**States:**
+- Idle: Show file input + upload button
+- Uploading: Show progress bar (0-100%)
+- Validation: Show spinner + "Validating rows..."
+- Validated: Show validation summary table
+
+**Interactions:**
+- User selects file → validate size and extension client-side
+- User clicks Upload → POST /import/upload
+- On success → display validation summary
+- On error → show error toast with error_code message
+
+---
+
+#### 2. ValidationSummary
+**Display:**
+- Total rows: 500
+- Valid rows: 485 (green badge)
+- Invalid rows: 15 (red badge)
+- Duplicate rows: 5 (yellow badge)
+
+**Actions:**
+- "Download Error Report" button (if invalid_rows > 0)
+- "Proceed with Valid Rows" button
+- "Cancel" button
+
+---
+
+#### 3. ImportJobStatus
+**Display (real-time polling every 3 seconds):**
+- Job ID
+- Status badge (QUEUED/PROCESSING/COMPLETED)
+- Progress: "485 / 500 rows processed"
+- Success count: 485
+- Failure count: 15
+
+**Final State:**
+- Show completion message: "Import completed. 485 customers created, 15 failed."
+- "Download Error Report" link
+- "Start New Import" button
+
+---
+
+### Error Handling
+- Network error → Show toast: "Connection lost. Please try again."
+- File too large (CRM_401) → Show toast: "File size exceeds 10MB limit."
+- Invalid format (CRM_400) → Show toast: "Invalid file format. Please upload CSV."
+```
+
+---
+
+### 16. Test Scenarios
+
+Define test cases for validation, integration, and failure scenarios.
+
+**Include:**
+- Unit tests
+- Integration tests
+- Edge cases and failure scenarios
+
+**Example:**
+```markdown
+## 16. Test Scenarios
+
+### Unit Tests
+
+#### Backend (CustomerImportService)
+- `shouldValidateFileFormatSuccess()`: Valid CSV with all required columns
+- `shouldRejectInvalidFileExtension()`: Upload .xlsx file → return CRM_400
+- `shouldRejectFileTooLarge()`: Upload 15MB file → return CRM_401
+- `shouldDetectDuplicateCustomerCodes()`: CSV with duplicate codes → flag in validation
+- `shouldCreateCustomersInBatches()`: Process 500 rows in 5 batches of 100
+
+#### Frontend (FileUploadForm)
+- `shouldShowErrorForInvalidFileType()`: Select .txt file → show validation error
+- `shouldDisplayValidationSummary()`: After upload → render summary table
+- `shouldPollJobStatus()`: After execute → poll every 3 seconds until COMPLETED
+
+---
+
+### Integration Tests
+
+#### API Integration
+- `POST /import/upload` → validate → `POST /import/execute` → poll `GET /import/jobs/{id}` → verify customers created in DB
+
+#### Service Integration
+- Mock file-service upload → verify CSV persisted
+- Mock notification-service → verify email sent on job completion
+
+---
+
+### Failure Scenarios
+
+#### Error Handling
+- Database connection lost during batch insert → rollback transaction, set job status to FAILED
+- External file-service timeout → retry 3 times → fail gracefully with error message
+- Duplicate customer_code in DB → mark row as failed, continue processing remaining rows
+
+#### Edge Cases
+- Upload empty CSV (0 rows) → return CRM_402
+- Upload CSV with 10,001 rows → return CRM_402 "Max 10,000 rows allowed"
+- Execute job with expired upload_id → return CRM_404
+- User cancels upload mid-transfer → cleanup partial file
+```
+
+---
+
+### 17. AI Output Expectations
+
+Define exactly what code the AI developer should generate from this specification.
+
+**Backend (Spring Boot):**
+- JPA Entities (with audit fields, soft delete, indexes)
+- Spring Data JPA Repositories
+- Service layer with business logic and validation
+- REST Controllers with @Valid and exception handling
+- DTOs (Request/Response) with Bean Validation annotations
+- Custom exception classes mapped to error codes
+- OpenFeign clients for external services (if applicable)
+- Unit tests (JUnit 5 + Mockito) for service layer
+- Integration tests for API endpoints
+
+**Frontend (React/TypeScript):**
+- Feature page components (e.g., `CustomerImportPage.tsx`)
+- TanStack Query hooks (e.g., `useUploadCustomerImport`, `useExecuteImportJob`)
+- Zustand stores for local state (e.g., upload progress, job status)
+- React Hook Form + Zod validation schemas
+- Type definitions mirroring backend DTOs
+- Error display components using error parser
+- Loading/success/error UI states
+
+**DevOps/Configuration:**
+- Database migration scripts (Flyway/Liquibase)
+- OpenAPI spec updates (if auto-generated)
+- Error code registration in multi-language properties files
+
+**Example Output Checklist:**
+```markdown
+## AI Developer Checklist
+
+### Backend Generated:
+- [ ] `CustomerImportJob.java` entity with audit + soft delete
+- [ ] `CustomerImportJobRepository.java`
+- [ ] `CustomerImportService.java` with validation and batch processing
+- [ ] `CustomerImportController.java` with 3 endpoints
+- [ ] `UploadCustomerImportRequest.java` DTO
+- [ ] `CustomerImportValidationResponse.java` DTO
+- [ ] `ExecuteImportJobRequest.java` DTO
+- [ ] `ImportJobStatusResponse.java` DTO
+- [ ] Error codes: CRM_400, CRM_401, CRM_402, CRM_403, CRM_404
+- [ ] Unit tests: `CustomerImportServiceTest.java`
+- [ ] Integration test: `CustomerImportControllerTest.java`
+
+### Frontend Generated:
+- [ ] `customer-import-page.tsx`
+- [ ] `file-upload-form.tsx` component
+- [ ] `validation-summary.tsx` component
+- [ ] `import-job-status.tsx` component
+- [ ] `useUploadCustomerImport.ts` TanStack Query hook
+- [ ] `useExecuteImportJob.ts` hook
+- [ ] `useImportJobStatus.ts` hook (with polling)
+- [ ] `customer-import.types.ts` (DTO types)
+- [ ] `customer-import-schema.ts` (Zod validation)
+
+### Database:
+- [ ] Migration: `V015__create_customer_import_jobs.sql`
+```
+
+---
+
+## Output Quality Gates
+
+Before delivering the Feature Specification, verify:
+
+- [ ] **Completeness**: All 17 sections filled with concrete details (no placeholders)
+- [ ] **Traceability**: References to Architecture Decisions (AD-001..014), RBAC, error system
+- [ ] **API Clarity**: Request/response JSON examples for every endpoint
+- [ ] **Domain Model**: All entities with fields, types, constraints, indexes
+- [ ] **State Machine**: All states and transitions defined with guards
+- [ ] **Error Codes**: All error scenarios mapped to specific error codes
+- [ ] **Observability**: Logs, metrics, traces specified per observability standards
+- [ ] **Security**: RBAC permissions and data-scope rules explicit
+- [ ] **Test Coverage**: Unit, integration, and failure scenarios defined
+- [ ] **AI Targets**: Explicit checklist of backend/frontend files to generate
+
+## Output Format
+
+Save the Feature Specification as a markdown file in `docs/features/{feature-id}-{feature-name}.md`.
+
+**File Naming Convention:**
+- Use lowercase, kebab-case
+- Include feature ID prefix
+- Example: `crm-015-customer-bulk-import.md`
+
+## Usage Example
+
+**User Prompt:**
+```
+#BA Add customer bulk import feature via CSV upload with validation and background processing
+```
+
+**AI Response:**
+1. Read prerequisite context: summary.md, rbac-model.md, database-schema.md, error system
+2. Generate complete 17-section Feature Specification
+3. Save to `docs/features/crm-015-customer-bulk-import.md`
+4. Confirm to user: "Feature Specification created. Ready for `#BE` or `#FE` implementation."
+
+---
+
+## Success Criteria
+
+A Feature Specification is complete when:
+
+1. **AI Developer Can Generate Code**: Another AI can read this spec and produce 90-95% of working code without clarification
+2. **No Ambiguity**: Every endpoint, field, state, error code is explicitly defined
+3. **Architecture Compliance**: All platform standards (AD-001..014, RBAC, error system, observability) are referenced and followed
+4. **Testable**: Test scenarios cover happy path, edge cases, and failure modes
+5. **Reviewable**: Technical lead can review spec and approve before implementation starts
+
+---
+
+## Anti-Patterns to Avoid
+
+❌ **Don't:**
+- Use vague placeholders like "TBD", "to be defined later"
+- Omit error codes or error handling scenarios
+- Skip state machine definition for stateful entities
+- Forget audit fields (created_at, created_by, updated_at, updated_by, deleted, deleted_at)
+- Ignore RBAC data-scope rules (ALL/TEAM/OWN)
+- Miss observability requirements (logs, metrics, traces)
+- Provide incomplete API contracts (missing request/response examples)
+
+✅ **Do:**
+- Define every field with type, constraint, and validation rule
+- Map every error scenario to a specific error code
+- Include concrete JSON examples for all API requests/responses
+- Reference existing architecture decisions and standards
+- Specify UI states (loading, success, error) for frontend components
+- List exact file names AI should generate (entities, DTOs, controllers, components)
+
+---
+
+## Integration with Development Workflow
+
+**Step 1: BA Phase**
+User: `#BA <feature description>`
+AI: Generate 17-section Feature Specification → Save to docs/features/
+
+**Step 2: Review Phase**
+Tech Lead reviews specification → Approve or request changes
+
+**Step 3: Implementation Phase**
+User: `#BE implement docs/features/crm-015-customer-bulk-import.md`
+AI: Load backend-spring-enterprise skill → Generate all backend code per spec
+
+User: `#FE implement docs/features/crm-015-customer-bulk-import.md`
+AI: Load frontend-nextjs-enterprise skill → Generate all frontend code per spec
+
+**Step 4: Validation Phase**
+- Run tests (unit, integration)
+- Check linter errors
+- Verify RBAC permissions
+- Test observability (logs, metrics appear correctly)
+
+---
+
+## Version History
+
+| Version | Date | Changes | Author |
+|---|---|---|---|
+| v1.0 | 2026-03-13 | Initial BA Feature Specification template with 17 sections | BA Skill Enhancement |

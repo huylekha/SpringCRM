@@ -4,6 +4,51 @@
 
 This catalog defines every module capability, actor, business rule, edge case, and acceptance criteria for the CRM platform v1. It serves as the single BA-level traceability source from which API contracts, RBAC policies, and QA test bases are derived.
 
+### Feature Specification Deep-Dive Process
+
+For complex features requiring detailed specification beyond the catalog-level overview, use the **BA Feature Specification Template** to generate a comprehensive 17-section specification:
+
+**When to Create a Feature Specification:**
+- Feature involves multiple services or complex integrations
+- Feature requires state machine or workflow orchestration
+- Feature has >3 API endpoints or complex business rules
+- Feature needs detailed UI/UX specification with multiple components
+- Feature requires background jobs or asynchronous processing
+- Team needs unambiguous requirements for AI-driven code generation
+
+**How to Generate a Feature Specification:**
+1. Use the `#BA <feature description>` tag to trigger BA skill
+2. AI generates 17-section specification following `.cursor/rules/ba-feature-specification-template.mdc`
+3. Specification saved to `docs/features/{feature-id}-{feature-name}.md`
+4. Review and validate using `.cursor/skills/business-analyst-enterprise/validation-checklist.md`
+5. Once approved, implement with `#BE` and/or `#FE` tags
+
+**Feature Specification Sections:**
+1. Feature Metadata (ID, priority, business goal)
+2. Actors (RBAC traceability)
+3. Business Context (when, why, boundaries)
+4. Business Flow (step-by-step workflow)
+5. API Contract (endpoints with JSON examples)
+6. Validation Rules (field constraints, error codes)
+7. Domain Model (entities with full schema)
+8. State Machine (states, transitions, guards)
+9. External Integrations (services, timeouts, fallbacks)
+10. Event Flow (event-driven architecture)
+11. Error Codes (standardized codes)
+12. Observability (logs, metrics, traces)
+13. Security Requirements (RBAC, data-scope)
+14. Performance Requirements (latency, throughput)
+15. Frontend UI Specification (components, interactions, states)
+16. Test Scenarios (unit, integration, failure cases)
+17. AI Output Expectations (file checklist for code generation)
+
+**Example Feature Specifications:**
+- `docs/features/crm-015-customer-bulk-import-spec.md` - File upload, validation, batch processing
+- `docs/features/crm-016-lead-qualification-workflow-spec.md` - State machine, scoring, conversion
+- `docs/features/crm-017-opportunity-forecast-dashboard-spec.md` - Analytics, charts, reports
+
+See `.cursor/skills/business-analyst-enterprise/examples/` for complete specification examples.
+
 ## 2. Platform Module Map
 
 | Module | Service | Domain Aggregate | Primary Actor(s) |

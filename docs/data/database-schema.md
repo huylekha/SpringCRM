@@ -19,87 +19,140 @@ Each business table includes:
 - `deleted` `BOOLEAN` not null default false
 - `deleted_at` `DATETIME(6)` null
 
-## 3. Auth Schema
+## 3. IAM Service Schemas (3 Separate Databases)
 
-### 3.1 Core Tables
+Following the **Database per Service** pattern, each IAM service owns an independent database.
+No cross-service FOREIGN KEY constraints exist between these databases.
+Cross-service references use `user_id` (UUID) as a **logical soft reference**.
 
-- `auth_user`
-  - identity and profile metadata.
-- `auth_role`
-  - role definition (`ADMIN`, `MANAGER`, `SALES_REP`).
-- `auth_claim`
-  - normalized claim dictionary.
-- `auth_permission`
-  - resource-action permission (`customer:read`, `lead:update`).
-- `auth_user_role`
-  - user-role mapping.
-- `auth_role_claim`
-  - role-claim mapping.
-- `auth_role_permission`
-  - role-permission mapping.
-- `auth_refresh_token`
-  - rotation-safe refresh token metadata and revocation state.
+### 3.1 Auth Service DB — `springcrm_auth`
 
-### 3.2 DDL Reference (Auth)
+Owns only credential and session data. Profile and RBAC data are owned by their respective services.
 
 ```sql
-CREATE TABLE auth_user (
-  id CHAR(36) PRIMARY KEY,
-  username VARCHAR(100) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  status VARCHAR(30) NOT NULL,
-  last_login_at DATETIME(6) NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL,
-  INDEX idx_auth_user_status_deleted (status, deleted),
-  INDEX idx_auth_user_created_at (created_at)
+CREATE TABLE auth_credentials (
+  id              CHAR(36)     PRIMARY KEY,
+  username        VARCHAR(100) NOT NULL UNIQUE,
+  password_hash   VARCHAR(255) NOT NULL,
+  status          VARCHAR(30)  NOT NULL DEFAULT 'ACTIVE',
+  failed_attempts INT          NOT NULL DEFAULT 0,
+  locked_until    DATETIME(6)  NULL,
+  last_login_at   DATETIME(6)  NULL,
+  created_at      DATETIME(6)  NOT NULL,
+  updated_at      DATETIME(6)  NULL,
+  INDEX idx_auth_cred_username (username),
+  INDEX idx_auth_cred_status (status)
 );
 
-CREATE TABLE auth_role (
-  id CHAR(36) PRIMARY KEY,
-  role_code VARCHAR(80) NOT NULL UNIQUE,
-  role_name VARCHAR(120) NOT NULL,
-  description VARCHAR(300) NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL,
-  INDEX idx_auth_role_deleted (deleted)
-);
-
-CREATE TABLE auth_claim (
-  id CHAR(36) PRIMARY KEY,
-  claim_code VARCHAR(120) NOT NULL UNIQUE,
-  claim_name VARCHAR(150) NOT NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL
-);
-
-CREATE TABLE auth_permission (
-  id CHAR(36) PRIMARY KEY,
-  permission_code VARCHAR(150) NOT NULL UNIQUE,
-  resource_name VARCHAR(80) NOT NULL,
-  action_name VARCHAR(80) NOT NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL,
-  INDEX idx_auth_permission_resource_action (resource_name, action_name)
+CREATE TABLE auth_sessions (
+  id                 CHAR(36)     PRIMARY KEY,
+  user_id            CHAR(36)     NOT NULL,
+  refresh_token_hash VARCHAR(255) NOT NULL UNIQUE,
+  device_info        VARCHAR(255) NULL,
+  ip_address         VARCHAR(45)  NULL,
+  expires_at         DATETIME(6)  NOT NULL,
+  is_revoked         BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at         DATETIME(6)  NOT NULL,
+  INDEX idx_sessions_user_id (user_id),
+  INDEX idx_sessions_token_hash (refresh_token_hash),
+  INDEX idx_sessions_expires_revoked (expires_at, is_revoked)
 );
 ```
+
+### 3.2 User Service DB — `springcrm_user`
+
+Owns all user biographical and contact profile data.
+
+```sql
+CREATE TABLE user_profiles (
+  id           CHAR(36)     PRIMARY KEY,
+  full_name    VARCHAR(200) NOT NULL,
+  email        VARCHAR(255) NOT NULL UNIQUE,
+  phone        VARCHAR(50)  NULL,
+  avatar_url   VARCHAR(500) NULL,
+  department   VARCHAR(100) NULL,
+  position     VARCHAR(100) NULL,
+  status       VARCHAR(30)  NOT NULL DEFAULT 'ACTIVE',
+  created_at   DATETIME(6)  NOT NULL,
+  created_by   CHAR(36)     NOT NULL,
+  updated_at   DATETIME(6)  NULL,
+  updated_by   CHAR(36)     NULL,
+  deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+  deleted_at   DATETIME(6)  NULL,
+  INDEX idx_user_profiles_email (email),
+  INDEX idx_user_profiles_status_deleted (status, deleted),
+  INDEX idx_user_profiles_created_at (created_at)
+);
+```
+
+### 3.3 ACL Service DB — `springcrm_acl`
+
+Owns all RBAC definitions and user-role assignments.
+
+```sql
+CREATE TABLE acl_roles (
+  id           CHAR(36)     PRIMARY KEY,
+  role_code    VARCHAR(80)  NOT NULL UNIQUE,
+  role_name    VARCHAR(120) NOT NULL,
+  description  VARCHAR(300) NULL,
+  is_system    BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at   DATETIME(6)  NOT NULL,
+  created_by   CHAR(36)     NOT NULL,
+  updated_at   DATETIME(6)  NULL,
+  updated_by   CHAR(36)     NULL,
+  deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+  deleted_at   DATETIME(6)  NULL,
+  INDEX idx_acl_role_code (role_code)
+);
+
+CREATE TABLE acl_permissions (
+  id              CHAR(36)     PRIMARY KEY,
+  permission_code VARCHAR(150) NOT NULL UNIQUE,
+  resource_name   VARCHAR(80)  NOT NULL,
+  action_name     VARCHAR(80)  NOT NULL,
+  created_at      DATETIME(6)  NOT NULL,
+  created_by      CHAR(36)     NOT NULL,
+  deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+  INDEX idx_acl_perm_resource_action (resource_name, action_name)
+);
+
+CREATE TABLE acl_claims (
+  id          CHAR(36)     PRIMARY KEY,
+  claim_code  VARCHAR(120) NOT NULL UNIQUE,
+  claim_name  VARCHAR(150) NOT NULL,
+  created_at  DATETIME(6)  NOT NULL,
+  created_by  CHAR(36)     NOT NULL,
+  deleted     BOOLEAN      NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE acl_user_roles (
+  id          CHAR(36)    PRIMARY KEY,
+  user_id     CHAR(36)    NOT NULL,
+  role_id     CHAR(36)    NOT NULL,
+  assigned_at DATETIME(6) NOT NULL,
+  assigned_by CHAR(36)    NOT NULL,
+  UNIQUE KEY uq_user_role (user_id, role_id),
+  INDEX idx_acl_user_roles_user_id (user_id),
+  CONSTRAINT fk_acl_user_roles_role FOREIGN KEY (role_id) REFERENCES acl_roles(id)
+);
+
+CREATE TABLE acl_role_permissions (
+  role_id       CHAR(36) NOT NULL,
+  permission_id CHAR(36) NOT NULL,
+  PRIMARY KEY (role_id, permission_id),
+  CONSTRAINT fk_rp_role FOREIGN KEY (role_id) REFERENCES acl_roles(id),
+  CONSTRAINT fk_rp_perm FOREIGN KEY (permission_id) REFERENCES acl_permissions(id)
+);
+
+CREATE TABLE acl_role_claims (
+  role_id  CHAR(36) NOT NULL,
+  claim_id CHAR(36) NOT NULL,
+  PRIMARY KEY (role_id, claim_id),
+  CONSTRAINT fk_rc_role FOREIGN KEY (role_id) REFERENCES acl_roles(id),
+  CONSTRAINT fk_rc_claim FOREIGN KEY (claim_id) REFERENCES acl_claims(id)
+);
+```
+
 
 ## 4. CRM Schema
 
@@ -187,9 +240,27 @@ CREATE TABLE crm_lead (
 
 ## 8. Migration and Seed Policy
 
-- Migration tooling recommendation: Flyway.
-- Baseline migration:
-  - `V1__init_auth_schema.sql`
-  - `V2__init_crm_schema.sql`
-  - `V3__seed_rbac_defaults.sql`
+- Migration tooling: Flyway (per-service, per-database).
+- Each service has its own Flyway migration path:
+
+  **Auth Service (`springcrm_auth`):**
+  - `V1__init_auth_credentials.sql`
+  - `V2__init_auth_sessions.sql`
+
+  **User Service (`springcrm_user`):**
+  - `V1__init_user_profiles.sql`
+  - `V2__seed_system_admin_profile.sql`
+
+  **ACL Service (`springcrm_acl`):**
+  - `V1__init_acl_schema.sql`
+  - `V2__seed_roles.sql`
+  - `V3__seed_permissions.sql`
+  - `V4__seed_role_permissions.sql`
+
+  **CRM Service (`springcrm_crm`):**
+  - `V1__init_crm_schema.sql`
+  - `V2__seed_crm_defaults.sql` (optional)
+
 - Seed includes baseline roles and permissions only, no business data.
+- Schema changes across services must be **backward compatible** — additive first.
+

@@ -47,3 +47,216 @@ alwaysApply: true
 - Choose the most specific matching skill first.
 - For mixed requirements, combine fullstack orchestration with the specific skill.
 - Keep decisions consistent with `.cursor/skills/README.md`.
+
+## BA-to-Development Handoff Workflow
+
+When business analysis and implementation span multiple interactions, follow this workflow:
+
+### Phase 1: BA Specification Generation
+**Trigger:** User writes `#BA <feature description>`
+**Actions:**
+1. Load `business-analyst-enterprise` skill
+2. Read prerequisite context:
+   - `docs/summary.md` (Architecture Decisions AD-001..014)
+   - `docs/architecture/rbac-model.md` (RBAC role matrix, data-scope rules)
+   - `docs/data/database-schema.md` (Database conventions)
+   - `.cursor/rules/spring-nextjs-multi-language-error-system.mdc` (Error codes)
+   - `.cursor/rules/spring-nextjs-observability-tracing-system.mdc` (Logging, tracing)
+3. Generate 17-section Feature Specification following `.cursor/rules/ba-feature-specification-template.mdc`
+4. Save to `docs/features/{feature-id}-{feature-name}.md`
+5. Confirm to user: "Feature Specification created. Ready for implementation."
+
+### Phase 2: Backend Implementation
+**Trigger:** User writes `#BE implement docs/features/{feature-spec}.md`
+**Actions:**
+1. Load `backend-spring-enterprise` skill
+2. Read Feature Specification (all 17 sections)
+3. Generate backend code per Section 17 (AI Output Expectations):
+   - JPA Entities (with audit fields, soft delete, indexes)
+   - Spring Data JPA Repositories
+   - Service layer (business logic, validation, state transitions)
+   - REST Controllers (with @Valid, exception handling)
+   - DTOs (Request/Response with Bean Validation)
+   - Error code enum additions
+   - OpenFeign clients (if external integrations)
+   - Unit tests (JUnit 5 + Mockito)
+   - Integration tests (@SpringBootTest)
+   - Database migration (Flyway/Liquibase)
+4. Validate implementation:
+   - Run linter (check touched files)
+   - Verify error codes registered
+   - Verify audit fields present in entities
+   - Verify RBAC permissions aligned
+5. Confirm to user: "Backend implementation complete. {X} files generated."
+
+### Phase 3: Frontend Implementation
+**Trigger:** User writes `#FE implement docs/features/{feature-spec}.md`
+**Actions:**
+1. Load `frontend-nextjs-enterprise` skill
+2. Read Feature Specification (focus on Sections 5, 15, 16, 17)
+3. Generate frontend code per Section 17:
+   - Next.js App Router pages
+   - React components (forms, tables, modals, dialogs)
+   - TanStack Query hooks (useQuery, useMutation)
+   - Zustand stores (feature-level state)
+   - React Hook Form + Zod validation schemas
+   - TypeScript types (mirror backend DTOs)
+   - Error parser integration
+   - Component tests (React Testing Library)
+4. Validate implementation:
+   - Run linter (check touched files)
+   - Verify API hooks use correct endpoints from spec
+   - Verify error handling uses error parser
+   - Verify RBAC checks for route access
+5. Confirm to user: "Frontend implementation complete. {Y} files generated."
+
+### Phase 4: End-to-End Validation (Optional)
+**Trigger:** User writes `#QC validate docs/features/{feature-spec}.md`
+**Actions:**
+1. Load `qa-testing-enterprise` skill
+2. Read Feature Specification (Section 16: Test Scenarios)
+3. Execute validation:
+   - Run backend unit tests
+   - Run frontend component tests
+   - Run API integration tests (if available)
+   - Check linter errors
+   - Verify database migration applied
+4. Generate test report:
+   - Pass/fail status per test scenario
+   - Code coverage metrics
+   - Remaining gaps (manual testing required)
+5. Confirm to user: "Validation complete. {Z}% test coverage achieved."
+
+### Workflow Examples
+
+**Example 1: Simple Feature (Backend Only)**
+```
+User: #BA Add API to soft-delete customer by ID
+
+AI: [Generates spec with 17 sections]
+    [Saves to docs/features/crm-018-delete-customer-api-spec.md]
+    "Feature Specification created."
+
+User: #BE implement docs/features/crm-018-delete-customer-api-spec.md
+
+AI: [Loads backend-spring-enterprise skill]
+    [Generates CustomerController.deleteCustomer endpoint]
+    [Generates CustomerService.softDelete method]
+    [Updates Customer entity (deleted, deleted_at fields already present)]
+    [Generates tests]
+    "Backend implementation complete. 4 files modified, 2 tests added."
+```
+
+**Example 2: Full-Stack Feature**
+```
+User: #BA Add lead qualification workflow with scoring and conversion
+
+AI: [Generates 17-section spec]
+    [Saves to docs/features/crm-016-lead-qualification-workflow-spec.md]
+    "Feature Specification created."
+
+User: #BE implement docs/features/crm-016-lead-qualification-workflow-spec.md
+
+AI: [Generates LeadQualificationService, LeadConversionService, controllers, DTOs, tests]
+    "Backend implementation complete. 15 files generated."
+
+User: #FE implement docs/features/crm-016-lead-qualification-workflow-spec.md
+
+AI: [Generates QualificationChecklist component, LeadConversionModal, hooks, types]
+    "Frontend implementation complete. 12 files generated."
+
+User: #QC validate docs/features/crm-016-lead-qualification-workflow-spec.md
+
+AI: [Runs all tests, generates coverage report]
+    "Validation complete. 94% test coverage. All critical paths tested."
+```
+
+**Example 3: Iterative Refinement**
+```
+User: #BA Add customer import feature
+
+AI: [Generates spec]
+
+User: [Reviews spec] Add support for Excel files, not just CSV
+
+AI: [Updates Section 5 API Contract, Section 6 Validation Rules, Section 15 Frontend UI]
+    [Saves updated spec]
+    "Specification updated with Excel support."
+
+User: #BE implement docs/features/crm-015-customer-bulk-import-spec.md
+
+AI: [Implements with Excel parsing using Apache POI library]
+```
+
+### Handoff Checklist
+
+Before transitioning from BA → Backend → Frontend, verify:
+
+**BA Phase Complete:**
+- [ ] All 17 sections filled (no "TBD")
+- [ ] API contracts have request/response JSON examples
+- [ ] Domain model includes audit fields
+- [ ] Error codes standardized
+- [ ] Test scenarios comprehensive
+
+**Backend Phase Complete:**
+- [ ] All entities generated with audit + soft delete
+- [ ] All endpoints match spec (path, method, status codes)
+- [ ] Error codes registered in ErrorCode enum
+- [ ] Unit tests pass
+- [ ] Linter clean
+
+**Frontend Phase Complete:**
+- [ ] All pages/components from Section 15 generated
+- [ ] API hooks call correct endpoints
+- [ ] Error handling uses error parser
+- [ ] Component tests pass
+- [ ] Linter clean
+
+### Cross-Phase Communication
+
+If implementation discovers spec gaps or issues:
+
+**Backend discovers missing field:**
+```
+AI: "Spec Section 7 missing customer.industry field referenced in Section 5 API contract.
+     Should I: (A) Add field to spec and entity, or (B) Remove from API contract?"
+```
+
+**Frontend discovers missing endpoint:**
+```
+AI: "Section 15 UI requires GET /api/customers/recent but Section 5 doesn't define it.
+     Should I: (A) Add endpoint to spec and backend, or (B) Use existing /api/customers list?"
+```
+
+### Version Control Best Practices
+
+**Commit Strategy:**
+1. BA Phase: Commit spec to `docs/features/` (single commit)
+2. Backend Phase: Commit all backend files (single commit, reference spec in message)
+3. Frontend Phase: Commit all frontend files (single commit, reference spec in message)
+
+**Commit Message Format:**
+```
+feat(crm): implement customer bulk import [CRM-015]
+
+Implements Feature Specification: docs/features/crm-015-customer-bulk-import-spec.md
+
+Backend changes:
+- CustomerImportJob entity + repository
+- CustomerImportService with batch processing
+- CustomerImportController (3 endpoints)
+- Error codes: CRM_IMPORT_*
+- Tests: CustomerImportServiceTest, CustomerImportControllerTest
+
+AI-generated: 90% | Manual: 10% (config, deployment)
+```
+
+### Success Metrics
+
+Track BA→Dev handoff efficiency:
+- **Spec Completeness:** % of specs passing validation checklist (target: 100%)
+- **Clarification Rate:** % of implementations requiring clarification questions (target: <10%)
+- **Code Generation Coverage:** % of code auto-generated from spec (target: 90-95%)
+- **Time-to-Implementation:** Days from spec approval to code complete (target: <2 days)
+- **Rework Rate:** % of implementations requiring significant changes post-review (target: <15%)

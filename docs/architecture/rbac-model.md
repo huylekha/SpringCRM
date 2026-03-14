@@ -1,5 +1,20 @@
 # RBAC Model
 
+> **IAM Architecture v2:** RBAC is now exclusively owned by `acl-service`.
+> See [iam-service-boundaries.md](iam-service-boundaries.md) for the full 3-pillar architecture.
+
+## 0. Service Ownership
+
+In the Enterprise IAM model, RBAC responsibilities are distributed as follows:
+
+| Concern | Service | Notes |
+|---|---|---|
+| Role & Permission definitions | `acl-service` | Single source of truth |
+| User-Role assignment | `acl-service` | Admin-only, requires `user:assign_role` permission |
+| JWT composition (embedding roles/claims) | `auth-service` | Aggregates from `acl-service` at login/refresh |
+| Enforcement (check permissions per request) | `crm-service` / each service | Reads JWT roles; no DB call needed |
+| Privilege escalation guard | `acl-service` | Enforced at assignment time |
+
 ## 1. Objective
 
 Provide a consistent authorization model for all platform operations using:
@@ -49,31 +64,41 @@ flowchart LR
 
 ## 4. Authorization Evaluation Flow
 
-1. User authenticates and receives JWT.
-2. JWT includes role and claim snapshot.
-3. Gateway validates token integrity and forwards identity context.
-4. Target service checks endpoint policy:
-   - role check for broad access
-   - permission check for fine-grained action.
-5. Data scope filter applied based on role level.
-6. Service returns `403` if policy is not satisfied.
+In the Enterprise IAM model, authorization is a **stateless, JWT-driven flow**:
+
+1. User authenticates → `auth-service` mints JWT embedding `roles[]` and `claims[]` (sourced from `acl-service`).
+2. Client attaches JWT in every subsequent request: `Authorization: Bearer <token>`.
+3. **API Gateway** verifies JWT signature (using cached RS256 public key — NO call to `auth-service` per request).
+4. Gateway extracts identity and forwards headers to target service: `X-User-Id`, `X-User-Roles`.
+5. **Target service** checks endpoint policy:
+   - Role check via `@PreAuthorize("hasRole('CRM_ADMIN')")` for broad access.
+   - Permission check for fine-grained action enforcement.
+6. Data scope filter applied based on role level.
+7. Service returns `403` if policy is not satisfied, `401` if token invalid/missing.
 
 ```mermaid
 flowchart TB
-  RequestIn[IncomingRequest]
-  TokenCheck[GatewayTokenCheck]
-  PermCheck[ServicePermissionCheck]
-  ScopeFilter[DataScopeFilter]
-  Execute[ExecuteOperation]
-  Deny403[Return403]
+  RequestIn["Client Request\nBearer JWT"]
+  GWVerify["API Gateway\nVerify JWT Signature (RS256 Public Key)"]
+  GWInject["Gateway Injects Headers\nX-User-Id, X-User-Roles"]
+  SvcRoleCheck["Target Service\n@PreAuthorize role/permission check"]
+  ScopeFilter[Data Scope Filter\nOWN / TEAM / ALL]
+  Execute[Execute Operation]
+  Deny403[Return 403]
+  Deny401[Return 401]
 
-  RequestIn --> TokenCheck
-  TokenCheck -->|"valid"| PermCheck
-  TokenCheck -->|"invalid"| Deny403
-  PermCheck -->|"allowed"| ScopeFilter
-  PermCheck -->|"denied"| Deny403
+  RequestIn --> GWVerify
+  GWVerify -->|"valid"| GWInject
+  GWVerify -->|"invalid/expired"| Deny401
+  GWInject --> SvcRoleCheck
+  SvcRoleCheck -->|"allowed"| ScopeFilter
+  SvcRoleCheck -->|"denied"| Deny403
   ScopeFilter --> Execute
 ```
+
+> **Key principle:** `auth-service` is called **only** during Login and Refresh.
+> All other requests are authorized stateless from the JWT payload alone.
+
 
 ## 5. Policy Expression Standard
 

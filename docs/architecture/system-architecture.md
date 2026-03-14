@@ -13,12 +13,30 @@ The platform is designed to deliver a SaaS-ready CRM with:
 
 ### Services
 
-- `auth-service`
-  - Identity, credential validation, token lifecycle, user/role/claim/permission.
+The platform adopts a 3-pillar **Enterprise IAM (Identity & Access Management)** model, mirroring Microsoft Azure AD / Entra ID architectural boundaries:
+
+- `auth-service` (**Authentication Provider**)
+  - Credential validation, JWT token issuance and lifecycle (login, refresh, logout, revoke).
+  - Owns: `auth_credentials`, `auth_sessions` tables only.
+  - Does **NOT** own user profile data or RBAC definitions.
+
+- `user-service` (**Identity & Profile Manager**)
+  - User lifecycle management: create, update, deactivate, search user profiles.
+  - Owns: `user_profiles` table (fullName, email, phone, avatar, department, status).
+  - Single source of truth for user biographical and contact data.
+
+- `acl-service` (**Authorization & Policy Engine**)
+  - RBAC source of truth: roles, claims, permissions, and user-role assignments.
+  - Exposes internal API used by `auth-service` to compose JWT access token payload.
+  - Owns: `acl_roles`, `acl_permissions`, `acl_claims`, `acl_user_roles`, `acl_role_permissions` tables.
+
 - `crm-service`
   - CRM domain transaction and query operations.
+
 - `api-gateway`
-  - Edge routing and cross-cutting policy enforcement.
+  - Edge routing and cross-cutting policy enforcement (token verification, rate limiting, CORS).
+  - Forwards decoded identity context (`X-User-Id`, `X-User-Roles`) downstream — does not re-validate with auth-service per request.
+
 - `frontend` (Next.js)
   - User-facing workflows and role-aware interaction model.
 
@@ -105,13 +123,16 @@ The v1 blueprint is tenant-ready with minimal change:
 
 ## 8. Security Ownership Matrix
 
-| Concern | Gateway | Auth Service | CRM Service | Frontend |
-|---|---|---|---|---|
-| Token presence and basic format check | Yes | No | No | Client attach only |
-| Access token issuing and refresh | No | Yes | No | Trigger flow |
-| RBAC policy source of truth | No | Yes | Read/check | Cache-aware UI |
-| Route-level throttling | Yes | No | No | No |
-| Business permission enforcement | No | Optional | Yes | UI-level hints |
+| Concern | Gateway | Auth Service | User Service | ACL Service | CRM Service | Frontend |
+|---|---|---|---|---|---|---|
+| Token presence and JWT signature check | Yes | No | No | No | No | Client attach only |
+| Access token issuing and refresh | No | Yes | No | No | No | Trigger flow |
+| User profile data (name, email, dept) | No | No | **Yes** | No | Read via JWT/API | Display only |
+| RBAC source of truth (Roles/Permissions) | No | No | No | **Yes** | No | Cache-aware UI |
+| JWT role composition (aggregation) | No | **Yes** (aggregator) | Provide name | Provide roles | No | No |
+| Route-level throttling | Yes | No | No | No | No | No |
+| Business permission enforcement | No | No | Self-only | No | **Yes** | UI-level hints |
+| User status management | No | Credential status | **Profile status** | No | No | No |
 
 ## 9. Deployment and Environment Strategy
 

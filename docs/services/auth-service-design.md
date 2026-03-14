@@ -1,13 +1,12 @@
 # Auth Service Design
 
+> **IAM Architecture v2:** Auth Service is now scoped to **Authentication only**.
+> User profile management → `user-service`.
+> RBAC (Roles, Permissions, Claims) → `acl-service`.
+> See [iam-service-boundaries.md](../architecture/iam-service-boundaries.md) for the full picture.
+
 ## 1. Responsibility
 
-`auth-service` is the identity authority for the platform:
-
-- user authentication
-- JWT token issuing and refresh rotation
-- logout and token revocation
-- user lifecycle management
 - RBAC source of truth (roles, claims, permissions)
 
 ## 2. Module Structure
