@@ -1,2 +1,203 @@
-include:
-  - local: "cicd/.gitlab-ci.yml"
+stages:
+  - lint
+  - test
+  - build
+  - docker_build
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_TAG: $CI_COMMIT_SHA
+  K8S_NAMESPACE: "springcrm-prod"
+  SMOKE_TEST_RETRIES: "12"
+  SMOKE_TEST_DELAY_SECONDS: "5"
+
+default:
+  interruptible: true
+  retry: 1
+
+# ---------- LINT ----------
+
+lint_backend:
+  stage: lint
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B -DskipTests validate
+
+lint_frontend:
+  stage: lint
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+
+# ---------- TEST ----------
+
+test_backend_unit:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/**/target/surefire-reports/*.xml
+
+test_backend_integration:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B verify -DskipUnitTests=true
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/**/target/failsafe-reports/*.xml
+
+test_frontend_unit:
+  stage: test
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run test --if-present
+
+test_frontend_e2e:
+  stage: test
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run test:e2e --if-present
+
+# ---------- BUILD ----------
+
+build_backend:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd backend
+    - mvn -B -DskipTests clean package
+  artifacts:
+    paths:
+      - backend/*/target/*.jar
+    expire_in: 1 hour
+
+build_frontend:
+  stage: build
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/.next
+    expire_in: 1 hour
+
+# ---------- DOCKER BUILD + PUSH ----------
+
+docker_build_and_push:
+  stage: docker_build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/auth-service:$IMAGE_TAG backend/auth-service
+    - docker build -t $CI_REGISTRY_IMAGE/crm-service:$IMAGE_TAG backend/crm-service
+    - docker build -t $CI_REGISTRY_IMAGE/api-gateway:$IMAGE_TAG backend/api-gateway
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$IMAGE_TAG frontend
+    - docker push $CI_REGISTRY_IMAGE/auth-service:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE/crm-service:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE/api-gateway:$IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE/frontend:$IMAGE_TAG
+
+# ---------- DEPLOY ----------
+
+deploy_staging:
+  stage: deploy
+  only:
+    - develop
+  script:
+    - chmod +x ./devops/scripts/deploy.sh
+    - ./devops/scripts/deploy.sh staging $IMAGE_TAG
+
+.deploy_production_blue_green_template:
+  stage: deploy
+  only:
+    - main
+  when: manual
+  script:
+    - chmod +x ./devops/scripts/deploy-blue-green.sh
+    - export K8S_NAMESPACE="$K8S_NAMESPACE"
+    - export K8S_DEPLOYMENT_NAME="$DEPLOY_WORKLOAD"
+    - export K8S_CONTAINER_NAME="$DEPLOY_WORKLOAD"
+    - export REGISTRY_IMAGE="$CI_REGISTRY_IMAGE/$DEPLOY_WORKLOAD"
+    - export SMOKE_TEST_RETRIES="$SMOKE_TEST_RETRIES"
+    - export SMOKE_TEST_DELAY_SECONDS="$SMOKE_TEST_DELAY_SECONDS"
+    - |
+      case "$DEPLOY_WORKLOAD" in
+        auth-service) export SMOKE_TEST_URL="$AUTH_SMOKE_TEST_URL" ;;
+        crm-service) export SMOKE_TEST_URL="$CRM_SMOKE_TEST_URL" ;;
+        api-gateway) export SMOKE_TEST_URL="$GATEWAY_SMOKE_TEST_URL" ;;
+        frontend) export SMOKE_TEST_URL="$FRONTEND_SMOKE_TEST_URL" ;;
+        *) echo "Unknown DEPLOY_WORKLOAD: $DEPLOY_WORKLOAD"; exit 1 ;;
+      esac
+    - ./devops/scripts/deploy-blue-green.sh production "$IMAGE_TAG"
+
+deploy_production_auth_service:
+  extends: .deploy_production_blue_green_template
+  variables:
+    DEPLOY_WORKLOAD: "auth-service"
+
+deploy_production_crm_service:
+  extends: .deploy_production_blue_green_template
+  variables:
+    DEPLOY_WORKLOAD: "crm-service"
+
+deploy_production_api_gateway:
+  extends: .deploy_production_blue_green_template
+  variables:
+    DEPLOY_WORKLOAD: "api-gateway"
+
+deploy_production_frontend:
+  extends: .deploy_production_blue_green_template
+  variables:
+    DEPLOY_WORKLOAD: "frontend"
+
+.rollback_production_template:
+  stage: deploy
+  only:
+    - main
+  when: manual
+  script:
+    - chmod +x ./devops/scripts/rollback.sh
+    - export K8S_NAMESPACE="$K8S_NAMESPACE"
+    - export K8S_DEPLOYMENT_NAME="$ROLLBACK_WORKLOAD"
+    - ./devops/scripts/rollback.sh production
+
+rollback_production_auth_service:
+  extends: .rollback_production_template
+  variables:
+    ROLLBACK_WORKLOAD: "auth-service"
+
+rollback_production_crm_service:
+  extends: .rollback_production_template
+  variables:
+    ROLLBACK_WORKLOAD: "crm-service"
+
+rollback_production_api_gateway:
+  extends: .rollback_production_template
+  variables:
+    ROLLBACK_WORKLOAD: "api-gateway"
+
+rollback_production_frontend:
+  extends: .rollback_production_template
+  variables:
+    ROLLBACK_WORKLOAD: "frontend"
