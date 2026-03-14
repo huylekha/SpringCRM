@@ -20,21 +20,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthenticationService authenticationService;
+  private final AuthenticationService authenticationService;
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authenticationService.login(request));
-    }
+  @PostMapping("/login")
+  public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    return ResponseEntity.ok(authenticationService.login(request));
+  }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<RefreshResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        return ResponseEntity.ok(authenticationService.refresh(request));
-    }
+  @PostMapping("/refresh")
+  public ResponseEntity<RefreshResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+    return ResponseEntity.ok(authenticationService.refresh(request));
+  }
 
-    @PostMapping("/logout")
-    public ResponseEntity<MessageResponse> logout(@Valid @RequestBody LogoutRequest request) {
-        authenticationService.logout(request);
-        return ResponseEntity.ok(new MessageResponse("Logout successful."));
-    }
+  @PostMapping("/logout")
+  public ResponseEntity<MessageResponse> logout(@Valid @RequestBody LogoutRequest request) {
+    authenticationService.logout(request);
+    return ResponseEntity.ok(new MessageResponse("Logout successful."));
+  }
 }

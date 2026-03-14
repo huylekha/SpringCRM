@@ -6,11 +6,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class UpdateUserRequest {
-    @Email
-    private String email;
+  @Email private String email;
 
-    @Size(max = 200)
-    private String fullName;
+  @Size(max = 200)
+  private String fullName;
 }

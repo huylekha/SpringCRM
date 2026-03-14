@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+
+echo "🔍 Running backend pre-commit checks..."
+
+# Check if backend files changed
+BACKEND_CHANGED=$(git diff --cached --name-only | grep '^backend/' | wc -l)
+
+if [ "$BACKEND_CHANGED" -gt 0 ]; then
+  echo "📦 Backend files changed, running Maven checks..."
+  
+  cd backend
+  
+  # Run Spotless (code formatting)
+  echo "Checking code formatting with Spotless..."
+  mvn spotless:check -q
+  if [ $? -ne 0 ]; then
+    echo "❌ Code formatting issues detected. Running spotless:apply..."
+    mvn spotless:apply
+    echo "✅ Code formatted. Please review changes and commit again."
+    exit 1
+  fi
+  
+  # Run quick validation
+  echo "Running Maven validation..."
+  mvn validate -q
+  if [ $? -ne 0 ]; then
+    echo "❌ Maven validation failed"
+    exit 1
+  fi
+  
+  cd ..
+  echo "✅ Backend validation passed!"
+fi
+
+# Check if frontend files changed
+FRONTEND_CHANGED=$(git diff --cached --name-only | grep '^frontend/' | wc -l)
+
+if [ "$FRONTEND_CHANGED" -gt 0 ]; then
+  echo "⚛️  Frontend files changed, running frontend checks..."
+  cd frontend
+  npx lint-staged
+  if [ $? -ne 0 ]; then
+    echo "❌ Frontend lint-staged failed"
+    exit 1
+  fi
+  cd ..
+  echo "✅ Frontend validation passed!"
+fi
+
+echo "✨ All pre-commit checks passed!"

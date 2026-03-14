@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 public class JwtProperties {
-    private String issuer = "crm-platform";
-    private String secret;
-    private int accessTokenExpiry = 900;
-    private int refreshTokenExpiry = 604800;
+  private String issuer = "crm-platform";
+  private String secret;
+  private int accessTokenExpiry = 900;
+  private int refreshTokenExpiry = 604800;
 }

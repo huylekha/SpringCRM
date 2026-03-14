@@ -6,14 +6,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class CreateRoleRequest {
-    @NotBlank @Size(max = 80)
-    private String roleCode;
+  @NotBlank
+  @Size(max = 80)
+  private String roleCode;
 
-    @NotBlank @Size(max = 120)
-    private String roleName;
+  @NotBlank
+  @Size(max = 120)
+  private String roleName;
 
-    @Size(max = 300)
-    private String description;
+  @Size(max = 300)
+  private String description;
 }

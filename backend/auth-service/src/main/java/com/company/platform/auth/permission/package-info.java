@@ -1,4 +1,2 @@
-/**
- * Permission management module.
- */
+/** Permission management module. */
 package com.company.platform.auth.permission;

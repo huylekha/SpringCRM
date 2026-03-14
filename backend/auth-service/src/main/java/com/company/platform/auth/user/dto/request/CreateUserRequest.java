@@ -5,19 +5,26 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class CreateUserRequest {
-    @NotBlank @Size(max = 100)
-    private String username;
+  @NotBlank
+  @Size(max = 100)
+  private String username;
 
-    @NotBlank @Email @Size(max = 255)
-    private String email;
+  @NotBlank
+  @Email
+  @Size(max = 255)
+  private String email;
 
-    @NotBlank @Size(min = 8)
-    private String password;
+  @NotBlank
+  @Size(min = 8)
+  private String password;
 
-    @NotBlank @Size(max = 200)
-    private String fullName;
+  @NotBlank
+  @Size(max = 200)
+  private String fullName;
 
-    private String status = "ACTIVE";
+  private String status = "ACTIVE";
 }

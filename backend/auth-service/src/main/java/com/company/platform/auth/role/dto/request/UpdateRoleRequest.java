@@ -5,11 +5,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class UpdateRoleRequest {
-    @Size(max = 120)
-    private String roleName;
+  @Size(max = 120)
+  private String roleName;
 
-    @Size(max = 300)
-    private String description;
+  @Size(max = 300)
+  private String description;
 }

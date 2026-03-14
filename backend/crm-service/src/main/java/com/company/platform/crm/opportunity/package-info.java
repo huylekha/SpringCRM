@@ -1,4 +1,2 @@
-/**
- * Opportunity pipeline module.
- */
+/** Opportunity pipeline module. */
 package com.company.platform.crm.opportunity;

@@ -18,19 +18,20 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PermissionController {
 
-    private final PermissionService permissionService;
+  private final PermissionService permissionService;
 
-    @PostMapping
-    @PreAuthorize("@perm.has('permission:create')")
-    public ResponseEntity<PermissionResponse> createPermission(
-            @Valid @RequestBody CreatePermissionRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(permissionService.createPermission(request));
-    }
+  @PostMapping
+  @PreAuthorize("@perm.has('permission:create')")
+  public ResponseEntity<PermissionResponse> createPermission(
+      @Valid @RequestBody CreatePermissionRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(permissionService.createPermission(request));
+  }
 
-    @GetMapping
-    @PreAuthorize("@perm.has('permission:read')")
-    public ResponseEntity<PageResponse<PermissionResponse>> listPermissions(
-            @PageableDefault(size = 50) Pageable pageable) {
-        return ResponseEntity.ok(permissionService.listPermissions(pageable));
-    }
+  @GetMapping
+  @PreAuthorize("@perm.has('permission:read')")
+  public ResponseEntity<PageResponse<PermissionResponse>> listPermissions(
+      @PageableDefault(size = 50) Pageable pageable) {
+    return ResponseEntity.ok(permissionService.listPermissions(pageable));
+  }
 }

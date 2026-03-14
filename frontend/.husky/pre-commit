@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+cd frontend
+
+echo "🔍 Running lint-staged for frontend..."
+npx lint-staged
+
+echo "✅ Pre-commit checks passed for frontend!"

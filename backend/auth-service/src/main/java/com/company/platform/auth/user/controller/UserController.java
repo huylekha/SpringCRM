@@ -18,54 +18,53 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+  private final UserService userService;
 
-    @PostMapping
-    @PreAuthorize("@perm.has('user:create')")
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
-    }
+  @PostMapping
+  @PreAuthorize("@perm.has('user:create')")
+  public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
+  }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("@perm.has('user:read')")
-    public ResponseEntity<UserDetailResponse> getUser(@PathVariable String id) {
-        return ResponseEntity.ok(userService.getUser(id));
-    }
+  @GetMapping("/{id}")
+  @PreAuthorize("@perm.has('user:read')")
+  public ResponseEntity<UserDetailResponse> getUser(@PathVariable String id) {
+    return ResponseEntity.ok(userService.getUser(id));
+  }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("@perm.has('user:update')")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable String id,
-                                                    @Valid @RequestBody UpdateUserRequest request) {
-        return ResponseEntity.ok(userService.updateUser(id, request));
-    }
+  @PutMapping("/{id}")
+  @PreAuthorize("@perm.has('user:update')")
+  public ResponseEntity<UserResponse> updateUser(
+      @PathVariable String id, @Valid @RequestBody UpdateUserRequest request) {
+    return ResponseEntity.ok(userService.updateUser(id, request));
+  }
 
-    @PatchMapping("/{id}/status")
-    @PreAuthorize("@perm.has('user:update')")
-    public ResponseEntity<UserResponse> updateStatus(@PathVariable String id,
-                                                      @Valid @RequestBody StatusUpdateRequest request) {
-        return ResponseEntity.ok(userService.updateStatus(id, request));
-    }
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("@perm.has('user:update')")
+  public ResponseEntity<UserResponse> updateStatus(
+      @PathVariable String id, @Valid @RequestBody StatusUpdateRequest request) {
+    return ResponseEntity.ok(userService.updateStatus(id, request));
+  }
 
-    @GetMapping
-    @PreAuthorize("@perm.has('user:read')")
-    public ResponseEntity<PageResponse<UserResponse>> listUsers(
-            @RequestParam(required = false) String status,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(userService.listUsers(status, pageable));
-    }
+  @GetMapping
+  @PreAuthorize("@perm.has('user:read')")
+  public ResponseEntity<PageResponse<UserResponse>> listUsers(
+      @RequestParam(required = false) String status,
+      @PageableDefault(size = 20) Pageable pageable) {
+    return ResponseEntity.ok(userService.listUsers(status, pageable));
+  }
 
-    @PostMapping("/{id}/roles")
-    @PreAuthorize("@perm.has('user:assign_role')")
-    public ResponseEntity<AssignRolesResponse> assignRoles(@PathVariable String id,
-                                                            @Valid @RequestBody AssignRolesRequest request) {
-        return ResponseEntity.ok(userService.assignRoles(id, request));
-    }
+  @PostMapping("/{id}/roles")
+  @PreAuthorize("@perm.has('user:assign_role')")
+  public ResponseEntity<AssignRolesResponse> assignRoles(
+      @PathVariable String id, @Valid @RequestBody AssignRolesRequest request) {
+    return ResponseEntity.ok(userService.assignRoles(id, request));
+  }
 
-    @DeleteMapping("/{id}/roles/{roleId}")
-    @PreAuthorize("@perm.has('user:assign_role')")
-    public ResponseEntity<Void> removeRole(@PathVariable String id,
-                                            @PathVariable String roleId) {
-        userService.removeRole(id, roleId);
-        return ResponseEntity.noContent().build();
-    }
+  @DeleteMapping("/{id}/roles/{roleId}")
+  @PreAuthorize("@perm.has('user:assign_role')")
+  public ResponseEntity<Void> removeRole(@PathVariable String id, @PathVariable String roleId) {
+    userService.removeRole(id, roleId);
+    return ResponseEntity.noContent().build();
+  }
 }

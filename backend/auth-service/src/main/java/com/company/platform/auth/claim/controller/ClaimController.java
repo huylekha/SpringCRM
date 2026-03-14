@@ -18,18 +18,18 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ClaimController {
 
-    private final ClaimService claimService;
+  private final ClaimService claimService;
 
-    @PostMapping
-    @PreAuthorize("@perm.has('claim:create')")
-    public ResponseEntity<ClaimResponse> createClaim(@Valid @RequestBody CreateClaimRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(claimService.createClaim(request));
-    }
+  @PostMapping
+  @PreAuthorize("@perm.has('claim:create')")
+  public ResponseEntity<ClaimResponse> createClaim(@Valid @RequestBody CreateClaimRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(claimService.createClaim(request));
+  }
 
-    @GetMapping
-    @PreAuthorize("@perm.has('claim:read')")
-    public ResponseEntity<PageResponse<ClaimResponse>> listClaims(
-            @PageableDefault(size = 50) Pageable pageable) {
-        return ResponseEntity.ok(claimService.listClaims(pageable));
-    }
+  @GetMapping
+  @PreAuthorize("@perm.has('claim:read')")
+  public ResponseEntity<PageResponse<ClaimResponse>> listClaims(
+      @PageableDefault(size = 50) Pageable pageable) {
+    return ResponseEntity.ok(claimService.listClaims(pageable));
+  }
 }

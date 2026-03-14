@@ -7,6 +7,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public class FieldError {
 
-    private final String field;
-    private final String message;
+  private final String field;
+  private final String message;
 }

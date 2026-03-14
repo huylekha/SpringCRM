@@ -11,6 +11,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SearchSort {
 
-    private String field;
-    private String direction = "ASC";
+  private String field;
+  private String direction = "ASC";
 }

@@ -5,8 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class LogoutRequest {
-    @NotBlank
-    private String refreshToken;
+  @NotBlank private String refreshToken;
 }

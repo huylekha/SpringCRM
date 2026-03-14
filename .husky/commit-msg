@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+commit_msg=$(cat $1)
+
+echo "🔍 Validating commit message..."
+
+# Check if commit references Feature ID (CRM-XXX format)
+if echo "$commit_msg" | grep -qE '(CRM|AUTH|GATEWAY|FRONTEND)-[0-9]+'; then
+  echo "✅ Commit message references Feature ID"
+else
+  echo ""
+  echo "⚠️  Commit message should reference Feature ID"
+  echo ""
+  echo "Format: feat(module): description [FEATURE-ID]"
+  echo "Example: feat(crm): implement customer import [CRM-015]"
+  echo ""
+  echo "Feature IDs:"
+  echo "  - CRM-XXX for CRM features"
+  echo "  - AUTH-XXX for auth features"
+  echo "  - GATEWAY-XXX for API gateway"
+  echo "  - FRONTEND-XXX for frontend features"
+  echo ""
+  echo "Continuing anyway (warning only)..."
+fi

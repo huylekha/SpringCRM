@@ -11,7 +11,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SearchFilter {
 
-    private String field;
-    private SearchOperator operator;
-    private Object value;
+  private String field;
+  private SearchOperator operator;
+  private Object value;
 }
