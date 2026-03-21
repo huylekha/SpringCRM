@@ -71,7 +71,7 @@ flowchart LR
   QueryRepository[QueryRepository]
   QueryDslLayer[QueryDSLBuilder]
   ProjectionMapper[DtoProjection]
-  MySqlStore[(MySQL)]
+  PostgresStore[(PostgreSQL)]
 
   SearchController --> SearchService
   SearchService --> QueryRepository

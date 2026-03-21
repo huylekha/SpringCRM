@@ -6,8 +6,8 @@
 
 1. **Start Infrastructure**:
    ```bash
-   # Start MySQL, Redis, and Kafka
-   docker-compose up -d mysql redis kafka
+   # Start PostgreSQL, Redis, and Kafka
+   docker-compose up -d postgres redis kafka
    ```
 
 2. **Run Services**:
@@ -266,11 +266,12 @@ spring.kafka:
 
 ```bash
 # Daily backup script
-mysqldump --single-transaction --routines --triggers \
-  --databases crm_db auth_db > backup_$(date +%Y%m%d).sql
+pg_dump --host=localhost --username=crm_user --dbname=crm_platform \
+  --format=custom --file=backup_$(date +%Y%m%d).dump
 
 # Restore from backup
-mysql crm_db < backup_20260321.sql
+pg_restore --host=localhost --username=crm_user --dbname=crm_platform \
+  --clean --if-exists backup_20260321.dump
 ```
 
 ### Event Store Backup
@@ -373,10 +374,10 @@ mvn sonar:sonar
 1. **Database Failure**:
    ```bash
    # Promote read replica to master
-   kubectl patch mysql-cluster --type='merge' -p='{"spec":{"topology":{"mode":"single-primary"}}}'
+   kubectl patch postgres-cluster --type='merge' -p='{"spec":{"topology":{"mode":"single-primary"}}}'
    
    # Update application configuration
-   kubectl set env deployment/crm-service SPRING_DATASOURCE_URL=jdbc:mysql://new-master:3306/crm_db
+   kubectl set env deployment/crm-service SPRING_DATASOURCE_URL=jdbc:postgresql://new-master:5432/crm_platform
    ```
 
 2. **Kafka Failure**:

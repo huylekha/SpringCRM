@@ -237,7 +237,7 @@ OpenTelemetry spans for:
 
 ```yaml
 # Database
-SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/crm_db
+SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/crm_platform
 SPRING_DATASOURCE_USERNAME: crm_user
 SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
 

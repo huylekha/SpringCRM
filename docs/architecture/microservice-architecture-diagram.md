@@ -12,7 +12,7 @@ flowchart LR
   ApiGateway[SpringCloudGateway]
   AuthService[AuthService]
   CrmService[CrmService]
-  MySqlDb[(MySQL)]
+  PostgresDb[(PostgreSQL)]
   RedisCache[(Redis)]
   SentryObs[SentryTracing]
 
@@ -46,7 +46,7 @@ flowchart TB
   end
 
   subgraph data [DataLayer]
-    MySqlNode[(MySQL)]
+    PostgresNode[(PostgreSQL)]
     RedisNode[(Redis)]
   end
 
@@ -68,7 +68,7 @@ sequenceDiagram
   participant Gateway as ApiGateway
   participant Auth as AuthService
   participant Redis as Redis
-  participant MySql as MySQL
+  participant Postgres as PostgreSQL
 
   UserClient->>Frontend: Submit credentials
   Frontend->>Gateway: POST /auth/login

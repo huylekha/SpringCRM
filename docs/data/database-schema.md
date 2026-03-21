@@ -1,9 +1,9 @@
-# Database Schema (MySQL)
+# Database Schema (PostgreSQL)
 
 ## 1. Database Strategy
 
-- Primary database engine: MySQL 8+ (InnoDB).
-- ID strategy: UUID (stored as `CHAR(36)` for readability; optional `BINARY(16)` optimization in later phase).
+- Primary database engine: PostgreSQL 16+ (with MySQL compatibility available via profiles).
+- ID strategy: UUID (stored as `VARCHAR(36)` for readability; optional UUID native type optimization in later phase).
 - Audit and soft-delete columns are mandatory on domain tables.
 - Timezone standard: UTC.
 
@@ -12,12 +12,12 @@
 Each business table includes:
 
 - `id` (UUID PK)
-- `created_at` `DATETIME(6)` not null
+- `created_at` `TIMESTAMP(6)` not null
 - `created_by` `VARCHAR(36)` not null
-- `updated_at` `DATETIME(6)` null
+- `updated_at` `TIMESTAMP(6)` null
 - `updated_by` `VARCHAR(36)` null
 - `deleted` `BOOLEAN` not null default false
-- `deleted_at` `DATETIME(6)` null
+- `deleted_at` `TIMESTAMP(6)` null
 
 ## 3. IAM Service Schemas (3 Separate Databases)
 

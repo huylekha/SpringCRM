@@ -14,20 +14,19 @@ docker compose up -d
 version: "3.9"
 
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: crm-mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: crm-postgres
     environment:
-      MYSQL_DATABASE: crm_platform
-      MYSQL_USER: crm_user
-      MYSQL_PASSWORD: crm_password
-      MYSQL_ROOT_PASSWORD: root_password
+      POSTGRES_DB: crm_platform
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_platform"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -55,15 +54,15 @@ services:
       dockerfile: Dockerfile
     container_name: auth-service
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       SERVER_PORT: 8081
-      SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
+      SPRING_PROFILES_ACTIVE: docker,postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: crm_platform
       DB_USER: crm_user
       DB_PASSWORD: crm_password
@@ -84,15 +83,15 @@ services:
       dockerfile: Dockerfile
     container_name: crm-service
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       auth-service:
         condition: service_started
     environment:
       SERVER_PORT: 8082
-      SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
+      SPRING_PROFILES_ACTIVE: docker,postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: crm_platform
       DB_USER: crm_user
       DB_PASSWORD: crm_password
@@ -152,7 +151,7 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:
 ```
 
@@ -175,11 +174,28 @@ After startup, verify:
 - Gateway: `http://localhost:8080`
 - Auth: `http://localhost:8081`
 - CRM: `http://localhost:8082`
-- MySQL: `localhost:3306`
+- PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
 
-## 5. Notes
+## 5. Using MySQL Instead of PostgreSQL
+
+To use MySQL instead of PostgreSQL:
+
+1. Update `devops/docker/docker-compose.yml`:
+   - Uncomment the `mysql` service section
+   - Comment out the `postgres` service section
+   - Update service dependencies from `postgres` to `mysql`
+   - Change environment variables:
+     - `SPRING_PROFILES_ACTIVE: docker,mysql`
+     - `DB_HOST: mysql`
+     - `DB_PORT: 3306`
+   - Uncomment `mysql_data` volume
+
+2. The system will use MySQL migrations from `db/migration` folders instead of PostgreSQL migrations from `db/migration-postgres`.
+
+## 6. Notes
 
 - Build contexts are reference paths and may be adjusted once repository scaffolding is created.
 - Keep Compose file in `devops/docker/docker-compose.yml` for long-term convention.
 - Use separate override files for integration-test or performance-test profiles.
+- PostgreSQL is the default database. MySQL support is maintained for compatibility.

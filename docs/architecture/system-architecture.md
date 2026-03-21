@@ -42,7 +42,7 @@ The platform adopts a 3-pillar **Enterprise IAM (Identity & Access Management)**
 
 ### Shared Infrastructure
 
-- `mysql` for transactional data.
+- `postgres` for transactional data.
 - `redis` for token/session/cache/rate-limit counters.
 - `sentry` + tracing backend for error/performance observability.
 
@@ -145,6 +145,6 @@ The v1 blueprint is tenant-ready with minimal change:
 
 - Java 21 + Spring Boot 3 + Maven.
 - Next.js App Router + TypeScript.
-- MySQL primary store and Redis cache/session.
+- PostgreSQL primary store and Redis cache/session.
 - Spring Cloud Gateway for edge concerns.
 - Sentry for frontend/backend issue visibility.

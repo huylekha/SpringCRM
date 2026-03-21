@@ -4,7 +4,7 @@
 
 This document is the master index and execution baseline for building a production-grade CRM platform with:
 
-- Backend: Java 21, Spring Boot 3, Maven, Hibernate, QueryDSL, MySQL, Redis, Spring Security JWT, Spring Cloud Gateway.
+- Backend: Java 21, Spring Boot 3, Maven, Hibernate, QueryDSL, PostgreSQL, Redis, Spring Security JWT, Spring Cloud Gateway.
 - Frontend: Next.js App Router, TypeScript, Zustand, TanStack Query, Axios, React Hook Form, Zod, shadcn/ui, Tailwind CSS, TanStack Table, Recharts.
 - DevOps: Docker, Docker Compose, GitLab CI first (GitHub Actions compatible design), Sentry observability.
 
@@ -29,7 +29,7 @@ This document is the master index and execution baseline for building a producti
 
 - `AD-001`: Architecture style is microservices + API Gateway.
 - `AD-002`: Backend service internals follow Clean Architecture layering.
-- `AD-003`: MySQL is the primary transactional data store for all services.
+- `AD-003`: PostgreSQL is the primary transactional data store for all services.
 - `AD-004`: Redis is used for token/session support, rate-limit counters, and cache.
 - `AD-005`: All external APIs expose DTO only; entities are never exposed directly.
 - `AD-006`: Search endpoints use QueryDSL with dynamic filters, sort, pagination.
@@ -53,7 +53,7 @@ This document is the master index and execution baseline for building a producti
 - `frontend` (port `3000`)
   - App Router UI with role-aware access control and CRM workflows.
 - Supporting services
-  - `mysql` (port `3306`), `redis` (port `6379`).
+  - `postgres` (port `5432`), `redis` (port `6379`).
 
 ## 5. Documentation Index (Canonical Set)
 
@@ -63,7 +63,7 @@ This document is the master index and execution baseline for building a producti
 | Diagrams | [architecture/microservice-architecture-diagram.md](architecture/microservice-architecture-diagram.md) | Mermaid context/container/sequence views |
 | Backend Structure | [backend/backend-folder-structure.md](backend/backend-folder-structure.md) | Service and package layout with clean architecture contracts |
 | Frontend Structure | [frontend/frontend-folder-structure.md](frontend/frontend-folder-structure.md) | App Router + feature modular structure |
-| Data | [data/database-schema.md](data/database-schema.md) | MySQL schema, indexing strategy, audit and soft-delete standard |
+| Data | [data/database-schema.md](data/database-schema.md) | PostgreSQL schema, indexing strategy, audit and soft-delete standard |
 | Auth | [services/auth-service-design.md](services/auth-service-design.md) | Auth module contracts, JWT lifecycle, security controls |
 | CRM | [services/crm-service-design.md](services/crm-service-design.md) | Domain aggregates, APIs, lifecycle workflows |
 | Gateway | [services/api-gateway-design.md](services/api-gateway-design.md) | Route policy, auth pass-through, resilience and observability |
