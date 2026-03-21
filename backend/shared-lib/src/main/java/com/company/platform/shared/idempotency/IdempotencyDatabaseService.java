@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.idempotency;
+package com.company.platform.shared.idempotency;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;

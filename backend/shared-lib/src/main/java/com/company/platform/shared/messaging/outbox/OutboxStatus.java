@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.messaging.outbox;
+package com.company.platform.shared.messaging.outbox;
 
 /** Status of an outbox message. */
 public enum OutboxStatus {

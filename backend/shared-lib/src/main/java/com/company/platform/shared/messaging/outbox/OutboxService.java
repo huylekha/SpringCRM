@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.messaging.outbox;
+package com.company.platform.shared.messaging.outbox;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

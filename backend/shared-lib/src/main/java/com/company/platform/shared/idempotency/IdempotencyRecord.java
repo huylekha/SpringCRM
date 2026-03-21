@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.idempotency;
+package com.company.platform.shared.idempotency;
 
 import jakarta.persistence.*;
 import java.time.Instant;

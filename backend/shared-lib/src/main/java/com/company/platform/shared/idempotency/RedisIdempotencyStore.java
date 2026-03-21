@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.idempotency;
+package com.company.platform.shared.idempotency;
 
 import com.company.platform.shared.cqrs.IdempotencyStore;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnClass(StringRedisTemplate.class)
 public class RedisIdempotencyStore implements IdempotencyStore {
 
   private final StringRedisTemplate redisTemplate;

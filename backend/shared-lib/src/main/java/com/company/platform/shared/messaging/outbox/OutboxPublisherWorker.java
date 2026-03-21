@@ -1,13 +1,13 @@
-package com.company.platform.crm.infrastructure.messaging.outbox;
+package com.company.platform.shared.messaging.outbox;
 
-import com.company.platform.crm.infrastructure.messaging.kafka.KafkaTopics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -22,17 +22,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnClass(KafkaTemplate.class)
+@ConditionalOnBean(EventTopicMapper.class)
 public class OutboxPublisherWorker {
 
   private final OutboxMessageRepository outboxRepository;
   private final KafkaTemplate<String, Object> kafkaTemplate;
   private final ObjectMapper objectMapper;
+  private final EventTopicMapper eventTopicMapper;
 
   private static final int BATCH_SIZE = 50;
-  private static final Map<String, String> EVENT_TYPE_TO_TOPIC =
-      Map.of(
-          "OrderCreatedEvent", KafkaTopics.ORDER_CREATED,
-          "OrderUpdatedEvent", KafkaTopics.ORDER_UPDATED);
 
   /** Process pending outbox messages every 5 seconds. */
   @Scheduled(fixedDelay = 5000)
@@ -61,7 +60,7 @@ public class OutboxPublisherWorker {
   }
 
   private void publishMessage(OutboxMessage message) {
-    String topic = EVENT_TYPE_TO_TOPIC.get(message.getEventType());
+    String topic = eventTopicMapper.getTopicForEventType(message.getEventType()).orElse(null);
     if (topic == null) {
       log.warn("No topic mapping found for event type: {}", message.getEventType());
       handlePublishFailure(message);

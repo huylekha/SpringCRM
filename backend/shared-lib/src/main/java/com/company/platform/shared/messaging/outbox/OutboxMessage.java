@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.messaging.outbox;
+package com.company.platform.shared.messaging.outbox;
 
 import jakarta.persistence.*;
 import java.time.Instant;

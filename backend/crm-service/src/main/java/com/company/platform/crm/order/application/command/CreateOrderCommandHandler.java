@@ -1,11 +1,11 @@
 package com.company.platform.crm.order.application.command;
 
-import com.company.platform.crm.infrastructure.messaging.outbox.OutboxService;
 import com.company.platform.crm.order.domain.Order;
 import com.company.platform.crm.order.domain.OrderItem;
 import com.company.platform.crm.order.domain.OrderRepository;
 import com.company.platform.crm.order.domain.event.OrderCreatedEvent;
 import com.company.platform.shared.cqrs.CommandHandler;
+import com.company.platform.shared.messaging.outbox.OutboxService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

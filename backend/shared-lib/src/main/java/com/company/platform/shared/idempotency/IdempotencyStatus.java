@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.idempotency;
+package com.company.platform.shared.idempotency;
 
 /** Status of an idempotency record. */
 public enum IdempotencyStatus {

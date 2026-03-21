@@ -1,4 +1,4 @@
-package com.company.platform.crm.infrastructure.messaging.inbox;
+package com.company.platform.shared.messaging.inbox;
 
 import java.time.Instant;
 import java.util.List;

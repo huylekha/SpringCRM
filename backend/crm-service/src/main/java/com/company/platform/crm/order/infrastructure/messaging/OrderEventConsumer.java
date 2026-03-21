@@ -1,8 +1,8 @@
 package com.company.platform.crm.order.infrastructure.messaging;
 
-import com.company.platform.crm.infrastructure.messaging.inbox.InboxService;
 import com.company.platform.crm.order.domain.event.OrderCreatedEvent;
 import com.company.platform.crm.order.domain.event.OrderUpdatedEvent;
+import com.company.platform.shared.messaging.inbox.InboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

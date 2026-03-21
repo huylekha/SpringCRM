@@ -5,10 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.company.platform.crm.infrastructure.messaging.outbox.OutboxService;
 import com.company.platform.crm.order.domain.Order;
 import com.company.platform.crm.order.domain.OrderRepository;
 import com.company.platform.crm.order.domain.OrderStatus;
+import com.company.platform.shared.messaging.outbox.OutboxService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
