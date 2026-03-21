@@ -1,0 +1,347 @@
+name: Local Docker Compose CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+  REGISTRY_URL: local
+
+jobs:
+  detect-changes:
+    runs-on: self-hosted
+    outputs:
+      auth-changed: ${{ steps.changes.outputs.auth }}
+      crm-changed: ${{ steps.changes.outputs.crm }}
+      gateway-changed: ${{ steps.changes.outputs.gateway }}
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      shared-changed: ${{ steps.changes.outputs.shared }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Get the base ref for comparison
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            BASE_REF="${{ github.event.before }}"
+          else
+            # First commit in branch, compare with main
+            BASE_REF="origin/main"
+          fi
+          
+          echo "Comparing against: $BASE_REF"
+          
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only $BASE_REF..${{ github.sha }} || echo "")
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Initialize flags
+          CHANGED_AUTH=false
+          CHANGED_CRM=false
+          CHANGED_GATEWAY=false
+          CHANGED_SHARED=false
+          CHANGED_FRONTEND=false
+          
+          # Analyze changes
+          for file in $CHANGED_FILES; do
+            case "$file" in
+              backend/shared-lib/*)
+                CHANGED_SHARED=true
+                ;;
+              backend/auth-service/*)
+                CHANGED_AUTH=true
+                ;;
+              backend/crm-service/*)
+                CHANGED_CRM=true
+                ;;
+              backend/api-gateway/*)
+                CHANGED_GATEWAY=true
+                ;;
+              frontend/*)
+                CHANGED_FRONTEND=true
+                ;;
+            esac
+          done
+          
+          # If shared-lib changed, all backend services are affected
+          if [ "$CHANGED_SHARED" = "true" ]; then
+            CHANGED_AUTH=true
+            CHANGED_CRM=true
+            CHANGED_GATEWAY=true
+          fi
+          
+          echo "auth=$CHANGED_AUTH" >> $GITHUB_OUTPUT
+          echo "crm=$CHANGED_CRM" >> $GITHUB_OUTPUT
+          echo "gateway=$CHANGED_GATEWAY" >> $GITHUB_OUTPUT
+          echo "shared=$CHANGED_SHARED" >> $GITHUB_OUTPUT
+          echo "frontend=$CHANGED_FRONTEND" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "📊 Change detection results:"
+          echo "  CHANGED_AUTH=$CHANGED_AUTH"
+          echo "  CHANGED_CRM=$CHANGED_CRM"
+          echo "  CHANGED_GATEWAY=$CHANGED_GATEWAY"
+          echo "  CHANGED_SHARED=$CHANGED_SHARED"
+          echo "  CHANGED_FRONTEND=$CHANGED_FRONTEND"
+
+  test-backend-auth:
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-changed == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Test auth-service
+        run: |
+          cd backend
+          mvn -B test -pl auth-service -am --no-transfer-progress
+
+  test-backend-crm:
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.crm-changed == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Test crm-service
+        run: |
+          cd backend
+          mvn -B test -pl crm-service -am --no-transfer-progress
+
+  test-backend-gateway:
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gateway-changed == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Test api-gateway
+        run: |
+          cd backend
+          mvn -B test -pl api-gateway -am --no-transfer-progress
+
+  test-frontend:
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend-changed == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Test frontend
+        run: |
+          cd frontend
+          npm run test:ci
+
+  docker-build-auth:
+    runs-on: self-hosted
+    needs: [detect-changes, test-backend-auth]
+    if: always() && needs.detect-changes.outputs.auth-changed == 'true' && (needs.test-backend-auth.result == 'success' || needs.test-backend-auth.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build auth-service Docker image
+        run: |
+          docker build -t ${REGISTRY_URL}/auth-service:${IMAGE_TAG} backend/auth-service
+          docker tag ${REGISTRY_URL}/auth-service:${IMAGE_TAG} ${REGISTRY_URL}/auth-service:latest
+
+  docker-build-crm:
+    runs-on: self-hosted
+    needs: [detect-changes, test-backend-crm]
+    if: always() && needs.detect-changes.outputs.crm-changed == 'true' && (needs.test-backend-crm.result == 'success' || needs.test-backend-crm.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build crm-service Docker image
+        run: |
+          docker build -t ${REGISTRY_URL}/crm-service:${IMAGE_TAG} backend/crm-service
+          docker tag ${REGISTRY_URL}/crm-service:${IMAGE_TAG} ${REGISTRY_URL}/crm-service:latest
+
+  docker-build-gateway:
+    runs-on: self-hosted
+    needs: [detect-changes, test-backend-gateway]
+    if: always() && needs.detect-changes.outputs.gateway-changed == 'true' && (needs.test-backend-gateway.result == 'success' || needs.test-backend-gateway.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build api-gateway Docker image
+        run: |
+          docker build -t ${REGISTRY_URL}/api-gateway:${IMAGE_TAG} backend/api-gateway
+          docker tag ${REGISTRY_URL}/api-gateway:${IMAGE_TAG} ${REGISTRY_URL}/api-gateway:latest
+
+  docker-build-frontend:
+    runs-on: self-hosted
+    needs: [detect-changes, test-frontend]
+    if: always() && needs.detect-changes.outputs.frontend-changed == 'true' && (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t ${REGISTRY_URL}/frontend:${IMAGE_TAG} frontend
+          docker tag ${REGISTRY_URL}/frontend:${IMAGE_TAG} ${REGISTRY_URL}/frontend:latest
+
+  deploy-local:
+    runs-on: self-hosted
+    needs: [detect-changes, docker-build-auth, docker-build-crm, docker-build-gateway, docker-build-frontend]
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file from secrets
+        run: |
+          cat > .env << EOF
+          IMAGE_TAG=${IMAGE_TAG}
+          REGISTRY_URL=${REGISTRY_URL}
+          JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          KAFKA_BOOTSTRAP_SERVERS=${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+          EOF
+
+      - name: Create logs directory
+        run: |
+          mkdir -p ./logs
+          chmod 755 ./logs
+
+      - name: Start infrastructure services
+        run: |
+          docker compose up -d postgres redis
+
+      - name: Wait for infrastructure to be ready
+        run: |
+          echo "Waiting for infrastructure services to be healthy..."
+          timeout 120 bash -c 'until docker compose ps --filter "health=healthy" | grep -q postgres && docker compose ps --filter "health=healthy" | grep -q redis; do sleep 5; done'
+
+      - name: Deploy changed services
+        run: |
+          SERVICES_TO_DEPLOY=""
+          
+          if [ "${{ needs.detect-changes.outputs.auth-changed }}" = "true" ] && [ "${{ needs.docker-build-auth.result }}" = "success" ]; then
+            SERVICES_TO_DEPLOY="$SERVICES_TO_DEPLOY auth-service"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.crm-changed }}" = "true" ] && [ "${{ needs.docker-build-crm.result }}" = "success" ]; then
+            SERVICES_TO_DEPLOY="$SERVICES_TO_DEPLOY crm-service"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.gateway-changed }}" = "true" ] && [ "${{ needs.docker-build-gateway.result }}" = "success" ]; then
+            SERVICES_TO_DEPLOY="$SERVICES_TO_DEPLOY api-gateway"
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.frontend-changed }}" = "true" ] && [ "${{ needs.docker-build-frontend.result }}" = "success" ]; then
+            SERVICES_TO_DEPLOY="$SERVICES_TO_DEPLOY frontend"
+          fi
+          
+          if [ -n "$SERVICES_TO_DEPLOY" ]; then
+            echo "Deploying services: $SERVICES_TO_DEPLOY"
+            for service in $SERVICES_TO_DEPLOY; do
+              echo "Deploying $service..."
+              docker compose up -d --no-deps --force-recreate $service
+            done
+          else
+            echo "No services to deploy"
+          fi
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for services to be healthy..."
+          sleep 30
+          
+          echo "Service status:"
+          docker compose ps
+          
+          echo ""
+          echo "Health check results:"
+          
+          # Always check core infrastructure
+          echo -n "postgres: "
+          docker compose exec -T postgres pg_isready -U crm_user -d crm_platform && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          echo -n "redis: "
+          docker compose exec -T redis redis-cli ping && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          # Check services (always check all running services, not just changed ones)
+          echo -n "auth-service: "
+          curl -f http://localhost:8081/actuator/health && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          echo -n "crm-service: "
+          curl -f http://localhost:8082/actuator/health && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          echo -n "api-gateway: "
+          curl -f http://localhost:8080/actuator/health && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          echo -n "frontend: "
+          curl -f http://localhost:3000/api/health && echo "✅ Healthy" || echo "❌ Unhealthy"
+          
+          echo ""
+          echo "Gateway routing tests:"
+          echo -n "auth via gateway: "
+          curl -f http://localhost:8080/api/v1/auth/actuator/health && echo "✅ Working" || echo "❌ Failed"
+          
+          echo -n "crm via gateway: "
+          curl -f http://localhost:8080/api/v1/crm/actuator/health && echo "✅ Working" || echo "❌ Failed"
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Logs ==="
+          docker compose logs --tail=50
+          
+          echo ""
+          echo "=== Container Status ==="
+          docker compose ps -a

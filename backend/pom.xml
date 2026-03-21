@@ -36,6 +36,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <gatling.version>3.11.5</gatling.version>
+        <flyway.version>12.1.1</flyway.version>
         <spotbugs.skip>false</spotbugs.skip>
     </properties>
 
@@ -95,6 +96,18 @@
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
+            </dependency>
+
+            <!-- Flyway - Override version for PostgreSQL 16 support -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
             </dependency>
 
             <!-- Gatling for Performance Testing -->

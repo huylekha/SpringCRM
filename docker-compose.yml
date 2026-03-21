@@ -1,0 +1,193 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm-postgres
+    environment:
+      POSTGRES_DB: crm_platform
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - crm_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - crm_network
+
+  auth-service:
+    image: ${REGISTRY_URL:-local}/auth-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: auth-service/Dockerfile
+    container_name: auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8081
+      SPRING_PROFILES_ACTIVE: docker,postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: crm_platform
+      DB_USER: crm_user
+      DB_PASSWORD: crm_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ISSUER: crm-platform
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-replace_me}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-replace_me}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SPRING_FLYWAY_ENABLED: false
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+      SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - crm_network
+
+  crm-service:
+    image: ${REGISTRY_URL:-local}/crm-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: crm-service/Dockerfile
+    container_name: crm-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8082
+      SPRING_PROFILES_ACTIVE: docker,postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: crm_platform
+      DB_USER: crm_user
+      DB_PASSWORD: crm_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_SERVICE_URL: http://auth-service:8081
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-}
+      SPRING_FLYWAY_ENABLED: false
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+      SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - crm_network
+
+  api-gateway:
+    image: ${REGISTRY_URL:-local}/api-gateway:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      crm-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: docker
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CRM_SERVICE_URL: http://crm-service:8082
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - crm_network
+
+  frontend:
+    image: ${REGISTRY_URL:-local}/frontend:${IMAGE_TAG:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crm-frontend
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-replace_me}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - crm_network
+
+networks:
+  crm_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -28,7 +28,12 @@ public class JwtValidationGatewayFilter implements GlobalFilter, Ordered {
   private static final String BEARER_PREFIX = "Bearer ";
 
   private static final Set<String> PUBLIC_PATHS =
-      Set.of("/api/v1/auth/login", "/api/v1/auth/refresh", "/actuator/health");
+      Set.of(
+          "/api/v1/auth/login",
+          "/api/v1/auth/refresh",
+          "/actuator/health",
+          "/api/v1/auth/actuator/health",
+          "/api/v1/crm/actuator/health");
 
   @Override
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {

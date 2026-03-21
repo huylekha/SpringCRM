@@ -42,11 +42,74 @@
         </encoder>
     </appender>
     
+    <!-- Rolling file appender for local development -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/logs/${SERVICE_NAME:-app}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-none}] - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/logs/${SERVICE_NAME:-app}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    
+    <!-- JSON file appender for structured logging in files -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/logs/${SERVICE_NAME:-app}-json.log</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Include MDC keys -->
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestPath</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            
+            <!-- Add custom fields -->
+            <customFields>{"service":"${SERVICE_NAME}","environment":"${ACTIVE_PROFILE}"}</customFields>
+            
+            <!-- Configure field names -->
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <level>level</level>
+                <levelValue>[ignore]</levelValue>
+                <message>message</message>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+            
+            <!-- Shorten logger names for readability -->
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/logs/${SERVICE_NAME:-app}-json.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    
     <!-- Profile-specific configuration -->
     <springProfile name="dev,local,test">
-        <!-- Use plain text logging in development for better readability -->
+        <!-- Use both console and file logging in development -->
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+        
+        <!-- Debug level for our packages -->
+        <logger name="com.company.platform" level="DEBUG"/>
+    </springProfile>
+    
+    <springProfile name="docker">
+        <!-- Use console, file, and JSON file logging in docker environment -->
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="JSON_FILE"/>
         </root>
         
         <!-- Debug level for our packages -->

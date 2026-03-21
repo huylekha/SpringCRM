@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
 import { ApiError, FieldError } from '@/types/api';
-import { isErrorCode } from '@/types/error-codes';
+import { isErrorCode as isValidErrorCode } from '@/types/error-codes';
 
 /**
  * Parse unknown error into structured ApiError

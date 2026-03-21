@@ -1,14 +1,27 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY ../pom.xml ../pom.xml
-COPY pom.xml .
-COPY src ./src
-RUN cd .. && mvn -B -pl api-gateway clean package -DskipTests
+
+# Copy everything for Maven multi-module build
+COPY . .
+
+# Build the specific service
+RUN mvn -B -pl api-gateway clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
+# Create non-root user
 RUN addgroup -S app && adduser -S app -G app
-COPY --from=build /app/target/*.jar app.jar
+
+# Copy the built jar
+COPY --from=build /app/api-gateway/target/*.jar app.jar
+
+# Create logs directory with proper permissions
+RUN mkdir -p /logs && chown app:app /logs
+
 USER app
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

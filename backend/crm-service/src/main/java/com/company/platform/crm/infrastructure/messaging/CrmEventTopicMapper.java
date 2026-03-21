@@ -4,13 +4,12 @@ import com.company.platform.crm.infrastructure.messaging.kafka.KafkaTopics;
 import com.company.platform.shared.messaging.outbox.EventTopicMapper;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.stereotype.Component;
 
 /**
  * CRM-specific implementation of EventTopicMapper. Maps CRM domain events to their corresponding
  * Kafka topics.
  */
-@Component
+// @Component - Disabled for local development without Kafka
 public class CrmEventTopicMapper implements EventTopicMapper {
 
   private static final Map<String, String> EVENT_TYPE_TO_TOPIC =

@@ -1,9 +1,15 @@
 'use client';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from '@/lib/query-client';
 import { Toaster } from 'sonner';
+import dynamic from 'next/dynamic';
+
+// Dynamically import devtools only in development
+const ReactQueryDevtools = dynamic(
+  () => import('@tanstack/react-query-devtools').then((mod) => ({ default: mod.ReactQueryDevtools })),
+  { ssr: false }
+);
 
 /**
  * Query Provider with error handling integration
