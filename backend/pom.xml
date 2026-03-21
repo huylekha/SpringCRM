@@ -36,6 +36,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <gatling.version>3.11.5</gatling.version>
+        <spotbugs.skip>false</spotbugs.skip>
     </properties>
 
     <dependencyManagement>
@@ -244,6 +245,9 @@
                             <goals>
                                 <goal>check</goal>
                             </goals>
+                            <configuration>
+                                <skip>${spotbugs.skip}</skip>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
@@ -256,7 +260,9 @@
                     <configuration>
                         <effort>Max</effort>
                         <threshold>High</threshold>
-                        <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+                        <excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+                        <failOnError>true</failOnError>
+                        <xmlOutput>true</xmlOutput>
                     </configuration>
                     <executions>
                         <execution>

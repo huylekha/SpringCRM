@@ -26,6 +26,7 @@ public class TraceIdFilter extends OncePerRequestFilter {
   public static final String TRACE_ID_HEADER = "X-Trace-Id";
   public static final String LEGACY_HEADER = "X-Correlation-Id";
   public static final String TRACE_ID_MDC_KEY = "traceId";
+  public static final String REQUEST_PATH_MDC_KEY = "requestPath";
   public static final String TRACE_ID_ATTRIBUTE = "traceId";
 
   @Override
@@ -37,6 +38,7 @@ public class TraceIdFilter extends OncePerRequestFilter {
     try {
       // Add to MDC for automatic logging inclusion
       MDC.put(TRACE_ID_MDC_KEY, traceId);
+      MDC.put(REQUEST_PATH_MDC_KEY, request.getRequestURI());
 
       // Add to response headers for propagation
       response.setHeader(TRACE_ID_HEADER, traceId);
@@ -49,6 +51,7 @@ public class TraceIdFilter extends OncePerRequestFilter {
     } finally {
       // Clean up MDC to prevent memory leaks
       MDC.remove(TRACE_ID_MDC_KEY);
+      MDC.remove(REQUEST_PATH_MDC_KEY);
     }
   }
 

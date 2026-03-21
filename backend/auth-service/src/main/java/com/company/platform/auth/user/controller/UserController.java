@@ -1,8 +1,11 @@
 package com.company.platform.auth.user.controller;
 
+import com.company.platform.auth.user.application.command.CreateUserCommand;
+import com.company.platform.auth.user.application.command.CreateUserResponse;
 import com.company.platform.auth.user.dto.request.*;
 import com.company.platform.auth.user.dto.response.*;
 import com.company.platform.auth.user.service.UserService;
+import com.company.platform.shared.cqrs.CommandBus;
 import com.company.platform.shared.response.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +22,23 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
   private final UserService userService;
+  private final CommandBus commandBus;
 
   @PostMapping
   @PreAuthorize("@perm.has('user:create')")
-  public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
+  public ResponseEntity<CreateUserResponse> createUser(
+      @Valid @RequestBody CreateUserRequest request) {
+    CreateUserCommand command =
+        CreateUserCommand.builder()
+            .username(request.getUsername())
+            .email(request.getEmail())
+            .password(request.getPassword())
+            .fullName(request.getFullName())
+            .status(request.getStatus())
+            .build();
+
+    CreateUserResponse response = commandBus.send(command);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @GetMapping("/{id}")

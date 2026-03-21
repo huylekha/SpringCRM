@@ -64,6 +64,36 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
+  @ExceptionHandler(ValidationException.class)
+  public ResponseEntity<ApiError> handleValidationException(
+      ValidationException ex, HttpServletRequest request) {
+    String traceId = TraceIdContext.getCurrentTraceId();
+    String path = request.getRequestURI();
+    String method = request.getMethod();
+    String translatedMessage = messageService.getMessage(ex.getErrorCode());
+
+    // Structured logging with validation context
+    log.warn(
+        "Validation exception: traceId={}, path={}, method={}, locale={}, fieldCount={}, userId={}",
+        traceId,
+        path,
+        method,
+        LocaleContextHolder.getLocale(),
+        ex.getFieldErrors().size(),
+        getCurrentUserId());
+
+    ApiError error =
+        ApiError.builder()
+            .code(ex.getErrorCode().getCode())
+            .message(translatedMessage)
+            .details(ex.getFieldErrors())
+            .traceId(traceId)
+            .path(path)
+            .method(method)
+            .build();
+    return ResponseEntity.status(ex.getStatus()).body(error);
+  }
+
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiError> handleBusiness(BusinessException ex, HttpServletRequest request) {
     String traceId = TraceIdContext.getCurrentTraceId();
