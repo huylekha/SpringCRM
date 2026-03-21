@@ -25,5 +25,4 @@ if [ "$SKIP_HOOKS" = "1" ]; then
   exit 0
 fi
 
-# Not bypassing
-exit 1
+# Not bypassing: fall through so pre-commit continues with quality checks

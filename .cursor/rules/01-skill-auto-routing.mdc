@@ -19,6 +19,7 @@ alwaysApply: true
   - `#Review` -> `code-review-ai` (Full code review of all Git changes)
   - `#ReviewBE` -> `code-review-ai` (Backend-only code review)
   - `#ReviewFE` -> `code-review-ai` (Frontend-only code review)
+  - `#Commit` -> `commit-flow-ai` (Full pre-commit flow: verify, fix, review, then commit)
   - `#Review` -> `code-review-ai` (AI code review with quality report)
   - `#ReviewBE` -> `code-review-ai` (backend-only scope)
   - `#ReviewFE` -> `code-review-ai` (frontend-only scope)
@@ -33,6 +34,7 @@ alwaysApply: true
 - `#SA`: solution-architecture-first context.
 - `#PM`: product-management-first context.
 - `#Review`/`#ReviewBE`/`#ReviewFE`: code-review-first context. Prioritize quality analysis and compliance checking.
+- `#Commit`: commit-flow-first context. Run full pre-commit flow (verify, fix, review) then commit; never bypass hooks.
 - Role context controls primary reasoning priority; file globs determine which domain rule files are loaded.
 
 ## Auto-Trigger Logic for Code Review

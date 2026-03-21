@@ -61,66 +61,42 @@ if [ "$CHANGED_AUTH_SERVICE" = true ] || \
   fi
   echo "   ✓ Compilation passed (zero warnings)"
   
-  # Test auth-service
+  # Test auth-service (verify = test + jacoco-check + spotbugs)
   if [ "$CHANGED_AUTH_SERVICE" = true ]; then
     echo ""
     echo "▶️  Testing auth-service with coverage..."
-    mvn test -pl auth-service -am -q
+    mvn verify -pl auth-service -am -q
     if [ $? -ne 0 ]; then
-      echo "❌ auth-service tests failed"
-      cd ..
-      exit 1
-    fi
-    
-    # Check coverage threshold
-    mvn jacoco:check -pl auth-service -q
-    if [ $? -ne 0 ]; then
-      echo "❌ auth-service coverage below threshold (80% line, 75% branch)"
-      echo "   Run 'mvn jacoco:report' to see coverage report"
+      echo "❌ auth-service tests/coverage/spotbugs failed"
+      echo "   Run 'mvn verify -pl auth-service' to see details"
       cd ..
       exit 1
     fi
     echo "   ✓ auth-service tests passed with coverage"
   fi
   
-  # Test crm-service
+  # Test crm-service (verify = test + jacoco-check + spotbugs)
   if [ "$CHANGED_CRM_SERVICE" = true ]; then
     echo ""
     echo "▶️  Testing crm-service with coverage..."
-    mvn test -pl crm-service -am -q
+    mvn verify -pl crm-service -am -q
     if [ $? -ne 0 ]; then
-      echo "❌ crm-service tests failed"
-      cd ..
-      exit 1
-    fi
-    
-    # Check coverage threshold
-    mvn jacoco:check -pl crm-service -q
-    if [ $? -ne 0 ]; then
-      echo "❌ crm-service coverage below threshold (80% line, 75% branch)"
-      echo "   Run 'mvn jacoco:report' to see coverage report"
+      echo "❌ crm-service tests/coverage/spotbugs failed"
+      echo "   Run 'mvn verify -pl crm-service' to see details"
       cd ..
       exit 1
     fi
     echo "   ✓ crm-service tests passed with coverage"
   fi
   
-  # Test api-gateway
+  # Test api-gateway (verify = test + jacoco-check + spotbugs)
   if [ "$CHANGED_API_GATEWAY" = true ]; then
     echo ""
     echo "▶️  Testing api-gateway with coverage..."
-    mvn test -pl api-gateway -am -q
+    mvn verify -pl api-gateway -am -q
     if [ $? -ne 0 ]; then
-      echo "❌ api-gateway tests failed"
-      cd ..
-      exit 1
-    fi
-    
-    # Check coverage threshold
-    mvn jacoco:check -pl api-gateway -q
-    if [ $? -ne 0 ]; then
-      echo "❌ api-gateway coverage below threshold (80% line, 75% branch)"
-      echo "   Run 'mvn jacoco:report' to see coverage report"
+      echo "❌ api-gateway tests/coverage/spotbugs failed"
+      echo "   Run 'mvn verify -pl api-gateway' to see details"
       cd ..
       exit 1
     fi
