@@ -34,3 +34,4 @@ backend/crm-service/.settings/
 backend/auth-service/.settings/
 backend/.settings/
 backend/api-gateway/.settings/
+actions-runner/
