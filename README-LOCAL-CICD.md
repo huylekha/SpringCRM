@@ -80,10 +80,10 @@ GitHub Actions (CI)
 1. **Setup Self-Hosted Runner:**
    ```powershell
    # Windows (as Administrator)
-   .\scripts\setup-cicd.ps1 -GitHubUrl "https://github.com/YOUR_USERNAME/SpringCRM" -RunnerToken "YOUR_TOKEN"
+   .\scripts\setup-cicd.ps1 -GitHubUrl "https://github.com/huylekha/SpringCRM" -RunnerToken "YOUR_TOKEN"
    
    # Linux/Mac (with sudo)  
-   sudo ./scripts/setup-cicd.sh "https://github.com/YOUR_USERNAME/SpringCRM" "YOUR_TOKEN"
+   sudo ./scripts/setup-cicd.sh "https://github.com/huylekha/SpringCRM" "YOUR_TOKEN"
    ```
 
 2. **Configure GitHub Secrets:**

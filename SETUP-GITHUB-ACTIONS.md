@@ -23,7 +23,7 @@ This guide will help you setup GitHub Actions CI/CD pipeline for local Docker Co
 
 1. **Go to GitHub Repository Settings:**
    ```
-   https://github.com/YOUR_USERNAME/SpringCRM/settings/actions/runners
+   https://github.com/huylekha/SpringCRM/settings/actions/runners
    ```
 
 2. **Click "New self-hosted runner"**
@@ -43,7 +43,7 @@ This guide will help you setup GitHub Actions CI/CD pipeline for local Docker Co
    [System.IO.Compression.ZipFile]::ExtractToDirectory("$PWD/actions-runner-win-x64-2.311.0.zip", "$PWD")
    
    # Configure (replace with your actual URL and token from GitHub)
-   ./config.cmd --url https://github.com/YOUR_USERNAME/SpringCRM --token YOUR_RUNNER_TOKEN
+   ./config.cmd --url https://github.com/huylekha/SpringCRM --token YOUR_RUNNER_TOKEN
    
    # Install as Windows service
    ./svc.sh install
@@ -62,7 +62,7 @@ This guide will help you setup GitHub Actions CI/CD pipeline for local Docker Co
    tar xzf ./actions-runner-linux-x64-2.311.0.tar.gz
    
    # Configure
-   ./config.sh --url https://github.com/YOUR_USERNAME/SpringCRM --token YOUR_RUNNER_TOKEN
+   ./config.sh --url https://github.com/huylekha/SpringCRM --token YOUR_RUNNER_TOKEN
    
    # Install as service
    sudo ./svc.sh install
@@ -119,7 +119,7 @@ cat .env
 
 2. **Check GitHub Actions tab:**
    ```
-   https://github.com/YOUR_USERNAME/SpringCRM/actions
+   https://github.com/huylekha/SpringCRM/actions
    ```
 
 3. **Monitor the pipeline:**
