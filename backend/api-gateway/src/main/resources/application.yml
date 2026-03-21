@@ -9,21 +9,23 @@ spring:
 
   cloud:
     gateway:
-      default-filters:
-        - StripPrefix=2
-      routes:
-        - id: auth-service
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/v1/auth/**, /api/v1/users/**, /api/v1/roles/**, /api/v1/claims/**, /api/v1/permissions/**
-        - id: crm-service
-          uri: ${CRM_SERVICE_URL:http://localhost:8082}
-          predicates:
-            - Path=/api/v1/crm/**
-        - id: health
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/actuator/health
+      server:
+        webflux:
+          default-filters:
+            - StripPrefix=2
+          routes:
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/auth/**, /api/v1/users/**, /api/v1/roles/**, /api/v1/claims/**, /api/v1/permissions/**
+            - id: crm-service
+              uri: ${CRM_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/crm/**
+            - id: health
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/actuator/health
 
   data:
     redis:
@@ -39,9 +41,10 @@ management:
     tags:
       application: ${spring.application.name}
       environment: ${SPRING_PROFILES_ACTIVE:default}
-    export:
-      prometheus:
-        enabled: true
     distribution:
       percentiles-histogram:
-        http.server.requests: true
+        "http.server.requests": true
+  prometheus:
+    metrics:
+      export:
+        enabled: true

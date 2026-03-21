@@ -94,14 +94,12 @@ public class UserService {
     AuthUser user = findActiveUser(id);
     String newStatus = request.getStatus().toUpperCase();
     if (!Set.of("ACTIVE", "INACTIVE", "LOCKED").contains(newStatus)) {
-      throw new BusinessException(
-          ErrorCode.VALIDATION_INVALID_VALUE, HttpStatus.UNPROCESSABLE_ENTITY);
+      throw new BusinessException(ErrorCode.VALIDATION_INVALID_VALUE, HttpStatus.valueOf(422));
     }
     if ("INACTIVE".equals(newStatus) && "SUPER_ADMIN".equals(getHighestRole(user))) {
       long adminCount = userRepository.countByRoles_RoleCodeAndDeletedFalse("SUPER_ADMIN");
       if (adminCount <= 1) {
-        throw new BusinessException(
-            ErrorCode.AUTH_LAST_ADMIN_PROTECTED, HttpStatus.UNPROCESSABLE_ENTITY);
+        throw new BusinessException(ErrorCode.AUTH_LAST_ADMIN_PROTECTED, HttpStatus.valueOf(422));
       }
     }
     user.setStatus(newStatus);

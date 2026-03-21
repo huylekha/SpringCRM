@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -92,11 +93,12 @@ public class AuthenticationService {
     String refreshTokenValue = tokenProvider.generateRefreshTokenValue();
 
     RefreshToken refreshToken =
-        RefreshToken.builder()
-            .tokenHash(hashToken(refreshTokenValue))
-            .userId(user.getId())
-            .expiresAt(Instant.now().plusSeconds(tokenProvider.getRefreshTokenExpiry()))
-            .build();
+        Objects.requireNonNull(
+            RefreshToken.builder()
+                .tokenHash(hashToken(refreshTokenValue))
+                .userId(user.getId())
+                .expiresAt(Instant.now().plusSeconds(tokenProvider.getRefreshTokenExpiry()))
+                .build());
     refreshTokenRepository.save(refreshToken);
 
     AuthUserSnapshot snapshot =
@@ -159,11 +161,12 @@ public class AuthenticationService {
     String newRefreshValue = tokenProvider.generateRefreshTokenValue();
 
     RefreshToken newRefreshToken =
-        RefreshToken.builder()
-            .tokenHash(hashToken(newRefreshValue))
-            .userId(user.getId())
-            .expiresAt(Instant.now().plusSeconds(tokenProvider.getRefreshTokenExpiry()))
-            .build();
+        Objects.requireNonNull(
+            RefreshToken.builder()
+                .tokenHash(hashToken(newRefreshValue))
+                .userId(user.getId())
+                .expiresAt(Instant.now().plusSeconds(tokenProvider.getRefreshTokenExpiry()))
+                .build());
     refreshTokenRepository.save(newRefreshToken);
 
     return RefreshResponse.builder()
@@ -192,7 +195,7 @@ public class AuthenticationService {
       byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
       return Base64.getEncoder().encodeToString(hash);
     } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("SHA-256 not available", e);
+      throw new IllegalStateException("SHA-256 not available", e);
     }
   }
 }

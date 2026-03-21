@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/filter/3.0.0/findbugs-filter.xsd">
+  <!-- Exclude QueryDSL generated sources -->
+  <Match>
+    <Class name="~.*\.Q[A-Z].*"/>
+  </Match>
+  <!-- Lombok Builder inner classes store list before constructor copy; Spring-injected beans -->
+  <Match>
+    <Bug code="EI_EXPOSE_REP2"/>
+    <Class name="com.company.platform.shared.exception.ApiError$ApiErrorBuilder"/>
+  </Match>
+  <Match>
+    <Bug code="EI_EXPOSE_REP2"/>
+    <Class name="com.company.platform.shared.response.PageResponse$PageResponseBuilder"/>
+  </Match>
+  <Match>
+    <Bug code="EI_EXPOSE_REP2"/>
+    <Class name="com.company.platform.shared.metrics.MetricsInterceptor"/>
+  </Match>
+</FindBugsFilter>

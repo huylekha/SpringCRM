@@ -1,0 +1,30 @@
+{
+  "groups": [{
+    "name": "jwt",
+    "type": "com.company.platform.auth.config.JwtProperties",
+    "sourceType": "com.company.platform.auth.config.JwtProperties",
+    "description": "JWT token configuration"
+  }],
+  "properties": [
+    {
+      "name": "jwt.issuer",
+      "type": "java.lang.String",
+      "description": "JWT issuer claim"
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT signing secret key"
+    },
+    {
+      "name": "jwt.access-token-expiry",
+      "type": "java.lang.Integer",
+      "description": "Access token expiry in seconds"
+    },
+    {
+      "name": "jwt.refresh-token-expiry",
+      "type": "java.lang.Integer",
+      "description": "Refresh token expiry in seconds"
+    }
+  ]
+}

@@ -43,6 +43,8 @@ Sau đó reload window lại.
 ## Cấu hình đã thêm vào project
 
 ### `.vscode/settings.json`
+
+**Chế độ IntelliSense** (null analysis bật — nhiều cảnh báo từ JDT):
 ```json
 {
   "java.configuration.updateBuildConfiguration": "automatic",
@@ -50,6 +52,18 @@ Sau đó reload window lại.
   "java.import.maven.enabled": true
 }
 ```
+
+**Chế độ Option A** (tin Maven + SpotBugs, tắt cảnh báo null JDT — chuẩn enterprise):
+```json
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.compile.nullAnalysis.mode": "disabled",
+  "java.import.maven.enabled": true,
+  "java.errors.incompleteClasspath.severity": "ignore"
+}
+```
+
+Project mặc định dùng **Option A**. Nguồn sự thật cho null/bug: `mvn verify` (compiler -Werror + SpotBugs).
 
 ### `.vscode/extensions.json`
 ```json

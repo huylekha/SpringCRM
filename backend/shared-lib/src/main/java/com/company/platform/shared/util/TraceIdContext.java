@@ -1,8 +1,8 @@
 package com.company.platform.shared.util;
 
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.slf4j.MDC;
-import org.springframework.lang.NonNull;
-import org.springframework.lang.Nullable;
 
 /**
  * Thread-safe utility for accessing current trace ID from MDC. Provides centralized access to trace
@@ -21,7 +21,7 @@ public final class TraceIdContext {
    * Get current trace ID from MDC. Returns "unknown" if not set (should never happen with
    * TraceIdFilter).
    */
-  @NonNull
+  @Nonnull
   public static String getCurrentTraceId() {
     String traceId = MDC.get(TRACE_ID_MDC_KEY);
     return traceId != null ? traceId : UNKNOWN_TRACE_ID;
@@ -36,7 +36,7 @@ public final class TraceIdContext {
   /**
    * Manually set trace ID in MDC. Only use for async operations or when TraceIdFilter doesn't run.
    */
-  public static void setTraceId(@NonNull String traceId) {
+  public static void setTraceId(@Nonnull String traceId) {
     if (traceId == null || traceId.isBlank()) {
       throw new IllegalArgumentException("Trace ID cannot be null or blank");
     }

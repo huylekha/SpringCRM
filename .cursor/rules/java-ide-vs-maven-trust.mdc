@@ -1,0 +1,23 @@
+---
+description: Java Option A - Trust Maven/SpotBugs, not JDT null warnings
+globs: ["**/*.java"]
+alwaysApply: false
+---
+
+# Java IDE vs Maven Trust (Option A)
+
+## Source of Truth
+
+- **Maven** (`mvn clean verify`) and **SpotBugs** are the authoritative checks.
+- **Do not** change design or code solely because of JDT (Eclipse) null-safety warnings in the IDE.
+- JDT null analysis is disabled (`java.compile.nullAnalysis.mode: disabled`) — those warnings are intentionally ignored.
+
+## When Coding
+
+1. **Verify locally**: Run `mvn verify` before pushing; fix compiler errors and SpotBugs findings.
+2. **Null-safety**: Follow [spring-null-safety.mdc](.cursor/rules/spring-null-safety.mdc) — use `Optional`, validate inputs, avoid returning null.
+3. **Ignore IDE null hints**: Do not add `Objects.requireNonNull` or refactor just to satisfy JDT.
+
+## Summary
+
+Trust: `mvn verify` + SpotBugs. Ignore: JDT null warnings in Cursor/VS Code.
