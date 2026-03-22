@@ -256,12 +256,11 @@ jobs:
           
           # Build with proper context and dockerfile
           docker build `
-            --context ${{ matrix.context }} `
-            --file ${{ matrix.dockerfile }} `
-            --tag "${env:REGISTRY_URL}/${{ matrix.service }}:${env:IMAGE_TAG}" `
-            --tag "${env:REGISTRY_URL}/${{ matrix.service }}:latest" `
+            -f ${{ matrix.dockerfile }} `
+            -t "${env:REGISTRY_URL}/${{ matrix.service }}:${env:IMAGE_TAG}" `
+            -t "${env:REGISTRY_URL}/${{ matrix.service }}:latest" `
             --cache-from "${env:REGISTRY_URL}/${{ matrix.service }}:latest" `
-            .
+            ${{ matrix.context }}
 
       - name: Push Docker image
         if: ${{ matrix.condition }}
