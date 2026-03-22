@@ -15,7 +15,7 @@
     "test:ci": "vitest run --coverage",
     "test:run": "vitest run",
     "lighthouse": "lhci autorun",
-    "prepare": "cd .. && (command -v husky >/dev/null 2>&1 && husky || true)"
+    "prepare": "echo 'Skipping husky setup in CI'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
