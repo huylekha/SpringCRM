@@ -1,0 +1,135 @@
+# Argo Rollouts configuration for auth-service
+# This replaces the standard Deployment for advanced deployment strategies
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+    component: backend
+    tier: service
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      # Canary deployment strategy
+      steps:
+      - setWeight: 20    # Route 20% traffic to canary
+      - pause: {}        # Manual approval required
+      - setWeight: 40    # Route 40% traffic to canary
+      - pause: {duration: 30s}  # Auto-pause for 30 seconds
+      - setWeight: 60    # Route 60% traffic to canary
+      - pause: {duration: 30s}
+      - setWeight: 80    # Route 80% traffic to canary
+      - pause: {duration: 30s}
+      # Fully promote canary (100% traffic)
+      
+      # Traffic routing (requires Ingress or Service Mesh)
+      trafficRouting:
+        nginx:
+          stableIngress: springcrm-ingress
+          annotationPrefix: nginx.ingress.kubernetes.io
+          additionalIngressAnnotations:
+            canary-by-header: X-Canary
+            canary-by-header-value: "true"
+      
+      # Analysis for automated promotion/rollback
+      analysis:
+        templates:
+        - templateName: auth-service-success-rate
+        args:
+        - name: service-name
+          value: auth-service
+        startingStep: 2   # Start analysis after 40% traffic
+        
+      # Automatic rollback on failure
+      abortScaleDownDelaySeconds: 30
+      scaleDownDelaySeconds: 30
+      
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        component: backend
+        tier: service
+    spec:
+      containers:
+      - name: auth-service
+        image: localhost:5000/auth-service:latest
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: SERVER_PORT
+          value: "8081"
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: auth-service-config
+              key: SPRING_PROFILES_ACTIVE
+        # ... (same env vars as regular deployment)
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+
+---
+# Analysis template for success rate monitoring
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: auth-service-success-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 30s
+    count: 5
+    successCondition: result[0] >= 0.95  # 95% success rate required
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:80
+        query: |
+          sum(rate(http_server_requests_total{job="{{args.service-name}}", status!~"5.*"}[2m])) /
+          sum(rate(http_server_requests_total{job="{{args.service-name}}"}[2m]))
+  - name: avg-response-time
+    interval: 30s
+    count: 5
+    successCondition: result[0] <= 500  # Max 500ms average response time
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:80
+        query: |
+          sum(rate(http_server_requests_seconds_sum{job="{{args.service-name}}"}[2m])) /
+          sum(rate(http_server_requests_total{job="{{args.service-name}}"}[2m])) * 1000

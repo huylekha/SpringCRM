@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: springcrm-ingress
+  labels:
+    app: springcrm-ingress
+    component: ingress
+  annotations:
+    # NGINX Ingress Controller annotations
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Enable CORS for frontend-backend communication
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+spec:
+  rules:
+  - host: springcrm.com  # Custom domain for easier testing
+    http:
+      paths:
+      # Frontend routes - must come first for proper routing
+      - path: /ENV_PLACEHOLDER/frontend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+      
+      # API Gateway routes - handles all /api/v1/* traffic
+      - path: /ENV_PLACEHOLDER/api-gateway(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 8080
+      
+      # Direct service routes for debugging/monitoring (optional)
+      - path: /ENV_PLACEHOLDER/auth-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 8081
+      
+      - path: /ENV_PLACEHOLDER/crm-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: crm-service
+            port:
+              number: 8082

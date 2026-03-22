@@ -1,0 +1,110 @@
+# Kubernetes-specific configuration for auth-service
+# This profile is activated when SPRING_PROFILES_ACTIVE includes "k8s"
+
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    
+  datasource:
+    # Use environment variables from Kubernetes ConfigMap/Secret
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:crm_platform}
+    username: ${DB_USER:crm_user}
+    password: ${DB_PASSWORD:crm_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false  # Disable in production
+        show_sql: false    # Disable in production
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # Spring Boot graceful shutdown
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+# JWT configuration from environment variables
+jwt:
+  issuer: ${JWT_ISSUER:crm-platform}
+  secret: ${JWT_SECRET:}  # Must be provided via Kubernetes Secret
+  access-token-expiry: 900      # 15 minutes
+  refresh-token-expiry: 604800  # 7 days
+
+# Actuator configuration for Kubernetes health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    readiness-state:
+      enabled: true
+    liveness-state:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:k8s}
+      pod: ${HOSTNAME:unknown}
+    distribution:
+      percentiles-histogram:
+        "http.server.requests": true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Logging configuration for Kubernetes
+logging:
+  level:
+    com.company.platform: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+
+# Server configuration
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 20000
+    keep-alive-timeout: 20000
+
+# Spring Boot graceful shutdown - moved to main spring section above

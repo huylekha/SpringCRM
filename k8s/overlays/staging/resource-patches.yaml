@@ -1,0 +1,18 @@
+# Resource patches for staging environment - increased storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  resources:
+    requests:
+      storage: 5Gi  # Increased storage for staging
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  resources:
+    requests:
+      storage: 2Gi  # Increased storage for staging

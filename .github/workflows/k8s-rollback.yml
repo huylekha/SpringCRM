@@ -1,0 +1,267 @@
+name: Kubernetes Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      rollback_commit:
+        description: 'Commit SHA to rollback to'
+        required: true
+        type: string
+      services:
+        description: 'Services to rollback (comma-separated, leave empty for all)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+env:
+  REGISTRY_URL: localhost:5000
+
+jobs:
+  validate-rollback:
+    runs-on: self-hosted
+    outputs:
+      target-services: ${{ steps.validation.outputs.services }}
+      rollback-commit: ${{ steps.validation.outputs.commit }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate rollback parameters
+        id: validation
+        shell: pwsh
+        run: |
+          $Environment = "${{ github.event.inputs.environment }}"
+          $RollbackCommit = "${{ github.event.inputs.rollback_commit }}"
+          $ServicesInput = "${{ github.event.inputs.services }}".Trim()
+          $Reason = "${{ github.event.inputs.reason }}"
+          
+          Write-Host "🔍 Validating rollback parameters..." -ForegroundColor Yellow
+          Write-Host "   Environment: $Environment" -ForegroundColor Gray
+          Write-Host "   Rollback commit: $RollbackCommit" -ForegroundColor Gray
+          Write-Host "   Reason: $Reason" -ForegroundColor Gray
+          
+          # Validate commit SHA exists
+          try {
+            git rev-parse --verify "$RollbackCommit^{commit}" | Out-Null
+            Write-Host "   ✅ Commit SHA is valid" -ForegroundColor Green
+          } catch {
+            Write-Error "❌ Invalid commit SHA: $RollbackCommit"
+            exit 1
+          }
+          
+          # Determine services to rollback
+          if ([string]::IsNullOrEmpty($ServicesInput)) {
+            $Services = @("auth-service", "crm-service", "api-gateway", "frontend")
+            Write-Host "   📋 Rolling back all services: $($Services -join ', ')" -ForegroundColor Gray
+          } else {
+            $Services = $ServicesInput -split ',' | ForEach-Object { $_.Trim() }
+            Write-Host "   📋 Rolling back specified services: $($Services -join ', ')" -ForegroundColor Gray
+          }
+          
+          # Validate services
+          $ValidServices = @("auth-service", "crm-service", "api-gateway", "frontend")
+          foreach ($service in $Services) {
+            if ($service -notin $ValidServices) {
+              Write-Error "❌ Invalid service: $service. Valid services: $($ValidServices -join ', ')"
+              exit 1
+            }
+          }
+          
+          # Output for next jobs
+          "services=$($Services -join ' ')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "commit=$RollbackCommit" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+  confirm-rollback:
+    runs-on: self-hosted
+    needs: validate-rollback
+    if: github.event.inputs.environment == 'prod'
+    steps:
+      - name: Production rollback confirmation
+        shell: pwsh
+        run: |
+          Write-Host "⚠️  PRODUCTION ROLLBACK CONFIRMATION" -ForegroundColor Red
+          Write-Host ""
+          Write-Host "Environment: ${{ github.event.inputs.environment }}" -ForegroundColor Yellow
+          Write-Host "Rollback to: ${{ needs.validate-rollback.outputs.rollback-commit }}" -ForegroundColor Yellow
+          Write-Host "Services: ${{ needs.validate-rollback.outputs.target-services }}" -ForegroundColor Yellow
+          Write-Host "Reason: ${{ github.event.inputs.reason }}" -ForegroundColor Yellow
+          Write-Host ""
+          Write-Host "This is a PRODUCTION rollback operation." -ForegroundColor Red
+          Write-Host "Proceeding in 10 seconds..." -ForegroundColor Yellow
+          
+          Start-Sleep 10
+          Write-Host "✅ Proceeding with production rollback..." -ForegroundColor Green
+
+  execute-rollback:
+    runs-on: self-hosted
+    needs: [validate-rollback, confirm-rollback]
+    if: always() && needs.validate-rollback.result == 'success' && (needs.confirm-rollback.result == 'success' || needs.confirm-rollback.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITOPS_TOKEN || github.token }}
+          fetch-depth: 0
+
+      - name: Install kustomize
+        shell: pwsh
+        run: |
+          # Check if kustomize is already installed
+          try {
+            $version = kustomize version --short 2>$null
+            Write-Host "✅ Kustomize already installed: $version" -ForegroundColor Green
+          } catch {
+            Write-Host "📦 Installing kustomize..." -ForegroundColor Yellow
+            
+            # Download and install kustomize
+            $url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.3.0/kustomize_v5.3.0_windows_amd64.tar.gz"
+            Invoke-WebRequest -Uri $url -OutFile "kustomize.tar.gz"
+            tar -xzf kustomize.tar.gz
+            Move-Item kustomize.exe "C:\Windows\System32\" -Force
+            Remove-Item kustomize.tar.gz
+            
+            Write-Host "✅ Kustomize installed successfully" -ForegroundColor Green
+          }
+
+      - name: Execute rollback
+        shell: pwsh
+        run: |
+          $Environment = "${{ github.event.inputs.environment }}"
+          $RollbackCommit = "${{ needs.validate-rollback.outputs.rollback-commit }}"
+          $Services = "${{ needs.validate-rollback.outputs.target-services }}" -split ' '
+          $Reason = "${{ github.event.inputs.reason }}"
+          
+          Write-Host "🔄 Executing rollback..." -ForegroundColor Green
+          Write-Host "   Environment: $Environment" -ForegroundColor Gray
+          Write-Host "   Rollback commit: $RollbackCommit" -ForegroundColor Gray
+          Write-Host "   Services: $($Services -join ', ')" -ForegroundColor Gray
+          
+          # Update image tags to rollback commit
+          .\scripts\update-kustomize-image-tags.ps1 `
+            -Environment $Environment `
+            -CommitSha $RollbackCommit `
+            -Services $Services
+
+      - name: Push rollback changes
+        shell: pwsh
+        run: |
+          # Configure git
+          git config user.name "GitOps Rollback Bot"
+          git config user.email "gitops-rollback-bot@springcrm.local"
+          
+          # Create rollback commit message
+          $RollbackCommit = "${{ needs.validate-rollback.outputs.rollback-commit }}"
+          $Environment = "${{ github.event.inputs.environment }}"
+          $Services = "${{ needs.validate-rollback.outputs.target-services }}"
+          $Reason = "${{ github.event.inputs.reason }}"
+          
+          $CommitMessage = @"
+          rollback($Environment): rollback to $RollbackCommit
+          
+          Services: $Services
+          Reason: $Reason
+          Rollback commit: $RollbackCommit
+          Initiated by: ${{ github.actor }}
+          
+          [skip ci]
+          "@
+          
+          # Amend the last commit with rollback info
+          git commit --amend -m $CommitMessage
+          
+          # Push the changes
+          git push origin HEAD --force-with-lease
+
+  verify-rollback:
+    runs-on: self-hosted
+    needs: [validate-rollback, execute-rollback]
+    if: always() && needs.execute-rollback.result == 'success'
+    steps:
+      - name: Verify rollback deployment
+        shell: pwsh
+        run: |
+          $Environment = "${{ github.event.inputs.environment }}"
+          $Services = "${{ needs.validate-rollback.outputs.target-services }}" -split ' '
+          
+          Write-Host "🔍 Verifying rollback deployment..." -ForegroundColor Yellow
+          Write-Host "   Environment: $Environment" -ForegroundColor Gray
+          Write-Host "   Services: $($Services -join ', ')" -ForegroundColor Gray
+          
+          # Wait for ArgoCD to sync the rollback
+          Write-Host "⏳ Waiting for ArgoCD sync..." -ForegroundColor Yellow
+          Start-Sleep 60
+          
+          # Run health checks
+          $BaseUrl = "http://localhost"
+          $FailedServices = @()
+          
+          foreach ($service in $Services) {
+            $url = "$BaseUrl/$Environment/$service/actuator/health"
+            if ($service -eq "frontend") {
+              $url = "$BaseUrl/$Environment/$service/api/health"
+            }
+            
+            try {
+              Write-Host "   Testing $service..." -ForegroundColor Gray
+              $response = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "   ✅ $service is healthy after rollback" -ForegroundColor Green
+              } else {
+                Write-Host "   ❌ $service returned status $($response.StatusCode)" -ForegroundColor Red
+                $FailedServices += $service
+              }
+            } catch {
+              Write-Host "   ❌ $service health check failed: $($_.Exception.Message)" -ForegroundColor Red
+              $FailedServices += $service
+            }
+          }
+          
+          if ($FailedServices.Count -gt 0) {
+            Write-Host ""
+            Write-Host "⚠️  Rollback verification failed for services: $($FailedServices -join ', ')" -ForegroundColor Red
+            Write-Host "   Manual intervention may be required." -ForegroundColor Yellow
+            
+            if ($Environment -eq "prod") {
+              exit 1
+            }
+          } else {
+            Write-Host ""
+            Write-Host "✅ Rollback verification successful for all services" -ForegroundColor Green
+          }
+
+  notify-rollback:
+    runs-on: self-hosted
+    needs: [validate-rollback, execute-rollback, verify-rollback]
+    if: always()
+    steps:
+      - name: Rollback notification
+        shell: pwsh
+        run: |
+          $Environment = "${{ github.event.inputs.environment }}"
+          $RollbackCommit = "${{ needs.validate-rollback.outputs.rollback-commit }}"
+          $Services = "${{ needs.validate-rollback.outputs.target-services }}"
+          $Reason = "${{ github.event.inputs.reason }}"
+          $Status = if ("${{ needs.execute-rollback.result }}" -eq "success") { "completed" } else { "failed" }
+          
+          Write-Host "📢 Rollback Notification" -ForegroundColor Cyan
+          Write-Host "   Environment: $Environment" -ForegroundColor Gray
+          Write-Host "   Status: $Status" -ForegroundColor Gray
+          Write-Host "   Rollback commit: $RollbackCommit" -ForegroundColor Gray
+          Write-Host "   Services: $Services" -ForegroundColor Gray
+          Write-Host "   Reason: $Reason" -ForegroundColor Gray
+          Write-Host "   Initiated by: ${{ github.actor }}" -ForegroundColor Gray
+          
+          # Here you could integrate with incident management or notification systems

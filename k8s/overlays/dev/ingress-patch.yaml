@@ -1,0 +1,47 @@
+# Ingress patch for dev environment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: springcrm-ingress
+  annotations:
+    # Override rewrite target for dev environment
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: springcrm.com
+    http:
+      paths:
+      # Frontend routes for dev environment
+      - path: /dev/frontend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dev-frontend
+            port:
+              number: 3000
+      
+      # API Gateway routes for dev environment
+      - path: /dev/api-gateway(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dev-api-gateway
+            port:
+              number: 8080
+      
+      # Direct service routes for dev debugging
+      - path: /dev/auth-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dev-auth-service
+            port:
+              number: 8081
+      
+      - path: /dev/crm-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dev-crm-service
+            port:
+              number: 8082

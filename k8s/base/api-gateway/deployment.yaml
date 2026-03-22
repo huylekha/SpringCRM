@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app: api-gateway
+    component: backend
+    tier: gateway
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        component: backend
+        tier: gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: localhost:5000/api-gateway:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: AUTH_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: AUTH_SERVICE_URL
+        - name: CRM_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: CRM_SERVICE_URL
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: REDIS_PORT
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: api-gateway-secret
+              key: SENTRY_DSN
+              optional: true
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always

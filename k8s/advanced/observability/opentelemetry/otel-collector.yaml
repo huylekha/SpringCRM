@@ -1,0 +1,259 @@
+# OpenTelemetry Collector configuration for SpringCRM
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+  labels:
+    app: otel-collector
+    component: observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      
+      # Prometheus metrics scraping
+      prometheus:
+        config:
+          scrape_configs:
+          - job_name: 'springcrm-services'
+            kubernetes_sd_configs:
+            - role: pod
+            relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_part_of]
+              action: keep
+              regex: springcrm
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+    
+    processors:
+      # Batch processor for better performance
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      
+      # Resource processor to add common attributes
+      resource:
+        attributes:
+        - key: service.namespace
+          from_attribute: k8s.namespace.name
+          action: insert
+        - key: service.instance.id
+          from_attribute: k8s.pod.name
+          action: insert
+        - key: deployment.environment
+          value: "${ENVIRONMENT}"
+          action: insert
+      
+      # Memory limiter to prevent OOM
+      memory_limiter:
+        limit_mib: 512
+        spike_limit_mib: 128
+        check_interval: 5s
+    
+    exporters:
+      # Jaeger for distributed tracing
+      jaeger:
+        endpoint: jaeger-collector.observability.svc.cluster.local:14250
+        tls:
+          insecure: true
+      
+      # Prometheus for metrics
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: springcrm
+        const_labels:
+          environment: "${ENVIRONMENT}"
+      
+      # OTLP for external systems (optional)
+      otlp:
+        endpoint: "${OTLP_ENDPOINT}"
+        tls:
+          insecure: true
+        headers:
+          api-key: "${OTLP_API_KEY}"
+      
+      # Logging exporter for debugging
+      logging:
+        loglevel: info
+    
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+    
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [jaeger, logging]
+        
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, resource, batch]
+          exporters: [prometheus, logging]
+        
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [logging]
+
+---
+# OpenTelemetry Collector Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+    component: observability
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+        component: observability
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.89.0
+        args:
+        - --config=/etc/otel/config.yaml
+        env:
+        - name: ENVIRONMENT
+          value: "kubernetes"
+        - name: OTLP_ENDPOINT
+          value: ""  # Set if using external OTLP endpoint
+        - name: OTLP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: otel-collector-secret
+              key: otlp-api-key
+              optional: true
+        ports:
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 4318
+          name: otlp-http
+        - containerPort: 8889
+          name: prometheus
+        - containerPort: 13133
+          name: health
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config
+      serviceAccountName: otel-collector
+
+---
+# Service for OpenTelemetry Collector
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+    component: observability
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4317
+    targetPort: 4317
+    protocol: TCP
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    protocol: TCP
+    name: otlp-http
+  - port: 8889
+    targetPort: 8889
+    protocol: TCP
+    name: prometheus
+  selector:
+    app: otel-collector
+
+---
+# ServiceAccount for OpenTelemetry Collector
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: observability
+
+---
+# ClusterRole for OpenTelemetry Collector
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for OpenTelemetry Collector
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector
+subjects:
+- kind: ServiceAccount
+  name: otel-collector
+  namespace: observability

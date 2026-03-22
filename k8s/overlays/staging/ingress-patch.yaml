@@ -1,0 +1,50 @@
+# Ingress patch for staging environment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: springcrm-ingress
+  annotations:
+    # Override rewrite target for staging environment
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      # Add environment header for debugging
+      more_set_headers "X-Environment: staging";
+spec:
+  rules:
+  - host: springcrm.com
+    http:
+      paths:
+      # Frontend routes for staging environment
+      - path: /staging/frontend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: staging-frontend
+            port:
+              number: 3000
+      
+      # API Gateway routes for staging environment
+      - path: /staging/api-gateway(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: staging-api-gateway
+            port:
+              number: 8080
+      
+      # Direct service routes for staging debugging
+      - path: /staging/auth-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: staging-auth-service
+            port:
+              number: 8081
+      
+      - path: /staging/crm-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: staging-crm-service
+            port:
+              number: 8082

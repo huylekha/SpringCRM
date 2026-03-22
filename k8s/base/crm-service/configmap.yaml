@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-service-config
+  labels:
+    app: crm-service
+    component: backend
+data:
+  SPRING_PROFILES_ACTIVE: "k8s,postgres"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "crm_platform_dev"  # Will be overridden by overlays
+  DB_USER: "crm_user"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  AUTH_SERVICE_URL: "http://auth-service:8081"
+  KAFKA_BOOTSTRAP_SERVERS: ""  # Optional, will be set by overlays if needed

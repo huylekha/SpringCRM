@@ -1,0 +1,30 @@
+# ConfigMap patches for production environment
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+data:
+  DB_NAME: "crm_platform_prod"
+  JWT_ISSUER: "crm-platform-prod"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-service-config
+data:
+  DB_NAME: "crm_platform_prod"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  POSTGRES_DB: "crm_platform_prod"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  NEXT_PUBLIC_API_BASE_URL: "https://springcrm.com/prod/api-gateway/api/v1"
+  NEXTAUTH_URL: "https://springcrm.com/prod/frontend"

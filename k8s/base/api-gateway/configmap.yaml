@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  labels:
+    app: api-gateway
+    component: backend
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  AUTH_SERVICE_URL: "http://auth-service:8081"
+  CRM_SERVICE_URL: "http://crm-service:8082"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"

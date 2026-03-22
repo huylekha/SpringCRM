@@ -1,0 +1,138 @@
+# ServiceMonitor for SpringCRM applications
+# This configures Prometheus to scrape metrics from our services
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: springcrm-services
+  namespace: monitoring
+  labels:
+    app: springcrm
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: springcrm
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: true
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'jvm_.*'
+      targetLabel: __tmp_jvm_metric
+      replacement: 'true'
+    - sourceLabels: [__tmp_jvm_metric]
+      regex: 'true'
+      targetLabel: component
+      replacement: 'jvm'
+  namespaceSelector:
+    matchNames:
+    - dev
+    - staging
+    - prod
+
+---
+# PrometheusRule for SpringCRM alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: springcrm-alerts
+  namespace: monitoring
+  labels:
+    app: springcrm
+    component: monitoring
+spec:
+  groups:
+  - name: springcrm.rules
+    interval: 30s
+    rules:
+    
+    # High error rate alert
+    - alert: SpringCRMHighErrorRate
+      expr: |
+        (
+          sum(rate(http_server_requests_total{job=~".*springcrm.*", status=~"5.*"}[5m])) /
+          sum(rate(http_server_requests_total{job=~".*springcrm.*"}[5m]))
+        ) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High error rate detected in SpringCRM service"
+        description: "{{ $labels.job }} has error rate above 5% for 5 minutes"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#high-error-rate"
+    
+    # High latency alert
+    - alert: SpringCRMHighLatency
+      expr: |
+        histogram_quantile(0.95,
+          sum(rate(http_server_requests_seconds_bucket{job=~".*springcrm.*"}[5m])) by (le, job)
+        ) > 1
+      for: 5m
+      labels:
+        severity: warning
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High latency detected in SpringCRM service"
+        description: "{{ $labels.job }} 95th percentile latency > 1s for 5 minutes"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#high-latency"
+    
+    # Service down alert
+    - alert: SpringCRMServiceDown
+      expr: up{job=~".*springcrm.*"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "SpringCRM service is down"
+        description: "{{ $labels.job }} has been down for more than 1 minute"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#service-down"
+    
+    # High memory usage alert
+    - alert: SpringCRMHighMemoryUsage
+      expr: |
+        (
+          jvm_memory_used_bytes{job=~".*springcrm.*", area="heap"} /
+          jvm_memory_max_bytes{job=~".*springcrm.*", area="heap"}
+        ) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High memory usage in SpringCRM service"
+        description: "{{ $labels.job }} heap memory usage > 85% for 5 minutes"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#high-memory-usage"
+    
+    # Database connection pool exhaustion
+    - alert: SpringCRMDatabasePoolExhausted
+      expr: |
+        (
+          hikaricp_connections_active{job=~".*springcrm.*"} /
+          hikaricp_connections_max{job=~".*springcrm.*"}
+        ) > 0.9
+      for: 2m
+      labels:
+        severity: critical
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "Database connection pool almost exhausted"
+        description: "{{ $labels.job }} connection pool usage > 90% for 2 minutes"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#database-pool-exhausted"
+    
+    # Too many GC pauses
+    - alert: SpringCRMHighGCPauses
+      expr: |
+        rate(jvm_gc_pause_seconds_count{job=~".*springcrm.*"}[5m]) > 10
+      for: 5m
+      labels:
+        severity: warning
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High GC pause frequency in SpringCRM service"
+        description: "{{ $labels.job }} has > 10 GC pauses per second for 5 minutes"
+        runbook_url: "https://github.com/huylekha/SpringCRM/wiki/Runbooks#high-gc-pauses"

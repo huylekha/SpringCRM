@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: staging
+
+resources:
+- ../../base
+- namespace.yaml
+
+patchesStrategicMerge:
+- configmap-patches.yaml
+- secret-patches.yaml
+- resource-patches.yaml
+- ingress-patch.yaml
+
+images:
+- name: localhost:5000/auth-service
+  newTag: latest  # Will be updated by CI/CD
+- name: localhost:5000/crm-service
+  newTag: latest  # Will be updated by CI/CD
+- name: localhost:5000/api-gateway
+  newTag: latest  # Will be updated by CI/CD
+- name: localhost:5000/frontend
+  newTag: latest  # Will be updated by CI/CD
+
+commonLabels:
+  environment: staging
+
+namePrefix: staging-
+
+replicas:
+- name: auth-service
+  count: 2  # Production-like replicas for staging
+- name: crm-service
+  count: 2
+- name: api-gateway
+  count: 2
+- name: frontend
+  count: 2

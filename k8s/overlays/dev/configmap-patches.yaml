@@ -1,0 +1,44 @@
+# ConfigMap patches for dev environment
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+data:
+  DB_HOST: "dev-postgres"
+  DB_NAME: "crm_platform_dev"
+  REDIS_HOST: "dev-redis"
+  JWT_ISSUER: "crm-platform-dev"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-service-config
+data:
+  DB_HOST: "dev-postgres"
+  DB_NAME: "crm_platform_dev"
+  REDIS_HOST: "dev-redis"
+  AUTH_SERVICE_URL: "http://dev-auth-service:8081"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  POSTGRES_DB: "crm_platform_dev"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+data:
+  REDIS_HOST: "dev-redis"
+  AUTH_SERVICE_URL: "http://dev-auth-service:8081"
+  CRM_SERVICE_URL: "http://dev-crm-service:8082"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  NEXT_PUBLIC_API_BASE_URL: "http://springcrm.com/dev/api-gateway/api/v1"
+  NEXTAUTH_URL: "http://springcrm.com/dev/frontend"

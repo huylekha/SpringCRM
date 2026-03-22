@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+    component: database
+data:
+  POSTGRES_DB: "crm_platform_dev"  # Will be overridden by overlays
+  POSTGRES_USER: "crm_user"

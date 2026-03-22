@@ -1,0 +1,134 @@
+# Kubernetes-specific configuration for api-gateway
+# This profile is activated when SPRING_PROFILES_ACTIVE includes "k8s"
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        # Auth Service Routes
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - StripPrefix=3  # Remove /api/v1/auth
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenish-rate: 10
+                redis-rate-limiter.burst-capacity: 20
+                key-resolver: "#{@ipKeyResolver}"
+
+        # CRM Service Routes
+        - id: crm-service
+          uri: ${CRM_SERVICE_URL:http://crm-service:8082}
+          predicates:
+            - Path=/api/v1/customers/**,/api/v1/orders/**,/api/v1/leads/**
+          filters:
+            - StripPrefix=2  # Remove /api/v1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenish-rate: 20
+                redis-rate-limiter.burst-capacity: 40
+                key-resolver: "#{@ipKeyResolver}"
+
+        # Health Check Routes (bypass authentication)
+        - id: auth-health
+          uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
+          predicates:
+            - Path=/api/v1/auth/actuator/health
+          filters:
+            - StripPrefix=3
+
+        - id: crm-health
+          uri: ${CRM_SERVICE_URL:http://crm-service:8082}
+          predicates:
+            - Path=/api/v1/crm/actuator/health
+          filters:
+            - StripPrefix=3
+
+      # Global filters
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      # Rate limiting configuration
+      redis-rate-limiter:
+        include-headers: false
+        config:
+          redis-script-name: request_rate_limiter
+          replenish-rate: 10
+          burst-capacity: 20
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # Spring Boot graceful shutdown
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+# Actuator configuration for Kubernetes health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    gateway:
+      enabled: true
+  health:
+    readiness-state:
+      enabled: true
+    liveness-state:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:k8s}
+      pod: ${HOSTNAME:unknown}
+    distribution:
+      percentiles-histogram:
+        "http.server.requests": true
+        "spring.cloud.gateway.requests": true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Logging configuration for Kubernetes
+logging:
+  level:
+    com.company.platform: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: WARN
+    org.springframework.web: INFO
+    reactor.netty: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+
+# Server configuration
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  netty:
+    connection-timeout: 20s
+    idle-timeout: 60s
+
+# Spring Boot graceful shutdown and rate limiting - moved to main spring section above

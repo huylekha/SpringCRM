@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: springcrm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: springcrm-project
+    app.kubernetes.io/part-of: springcrm
+spec:
+  description: SpringCRM Application Project
+  
+  # Source repositories that applications in this project can pull from
+  sourceRepos:
+  - 'https://github.com/huylekha/SpringCRM.git'
+  - 'https://github.com/huylekha/SpringCRM'  # Alternative URL format
+  
+  # Destinations that applications in this project can deploy to
+  destinations:
+  - namespace: dev
+    server: https://kubernetes.default.svc
+  - namespace: staging
+    server: https://kubernetes.default.svc
+  - namespace: prod
+    server: https://kubernetes.default.svc
+  - namespace: argocd
+    server: https://kubernetes.default.svc
+  
+  # Cluster resource whitelist - what cluster-scoped resources can be managed
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: 'networking.k8s.io'
+    kind: NetworkPolicy
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRole
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRoleBinding
+  
+  # Namespace resource whitelist - what namespaced resources can be managed
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Secret
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ServiceAccount
+  - group: ''
+    kind: PersistentVolumeClaim
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: ReplicaSet
+  - group: 'networking.k8s.io'
+    kind: Ingress
+  - group: 'networking.k8s.io'
+    kind: NetworkPolicy
+  - group: 'policy'
+    kind: PodDisruptionBudget
+  - group: 'autoscaling'
+    kind: HorizontalPodAutoscaler
+  
+  # Roles for this project
+  roles:
+  - name: admin
+    description: Admin access to SpringCRM project
+    policies:
+    - p, proj:springcrm:admin, applications, *, springcrm/*, allow
+    - p, proj:springcrm:admin, repositories, *, *, allow
+    - p, proj:springcrm:admin, certificates, *, *, allow
+    groups:
+    - springcrm-admins
+  
+  - name: developer
+    description: Developer access to SpringCRM project
+    policies:
+    - p, proj:springcrm:developer, applications, get, springcrm/*, allow
+    - p, proj:springcrm:developer, applications, sync, springcrm/springcrm-dev, allow
+    - p, proj:springcrm:developer, applications, sync, springcrm/springcrm-staging, allow
+    - p, proj:springcrm:developer, repositories, get, *, allow
+    groups:
+    - springcrm-developers
+  
+  - name: readonly
+    description: Read-only access to SpringCRM project
+    policies:
+    - p, proj:springcrm:readonly, applications, get, springcrm/*, allow
+    - p, proj:springcrm:readonly, repositories, get, *, allow
+    groups:
+    - springcrm-viewers

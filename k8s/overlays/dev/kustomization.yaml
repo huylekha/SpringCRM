@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+- ../../base
+- namespace.yaml
+
+patchesStrategicMerge:
+- configmap-patches.yaml
+- secret-patches.yaml
+- ingress-patch.yaml
+
+images:
+- name: localhost:5000/auth-service
+  newTag: working  # Will be updated by CI/CD
+- name: localhost:5000/crm-service
+  newTag: working  # Will be updated by CI/CD
+- name: localhost:5000/api-gateway
+  newTag: fixed  # Will be updated by CI/CD
+- name: localhost:5000/frontend
+  newTag: initial  # Will be updated by CI/CD
+
+commonLabels:
+  environment: dev
+
+namePrefix: dev-
+
+replicas:
+- name: auth-service
+  count: 1  # Reduced replicas for dev
+- name: crm-service
+  count: 1
+- name: api-gateway
+  count: 1
+- name: frontend
+  count: 1

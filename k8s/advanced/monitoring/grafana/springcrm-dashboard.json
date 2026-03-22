@@ -1,0 +1,270 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "SpringCRM Application Dashboard",
+    "tags": ["springcrm", "microservices", "java", "spring-boot"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_total{job=~\".*springcrm.*\"}[5m])) by (job)",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/sec",
+            "min": 0
+          }
+        ],
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_total{job=~\".*springcrm.*\", status=~\"5.*\"}[5m])) by (job) / sum(rate(http_server_requests_total{job=~\".*springcrm.*\"}[5m])) by (job)",
+            "legendFormat": "{{job}} Error Rate",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Error Rate",
+            "min": 0,
+            "max": 1
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 0.05,
+            "colorMode": "critical",
+            "op": "gt"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Response Time (95th Percentile)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\".*springcrm.*\"}[5m])) by (le, job))",
+            "legendFormat": "{{job}} 95th percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=~\".*springcrm.*\"}[5m])) by (le, job))",
+            "legendFormat": "{{job}} 50th percentile",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Response Time (s)",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "JVM Memory Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=~\".*springcrm.*\", area=\"heap\"} / jvm_memory_max_bytes{job=~\".*springcrm.*\", area=\"heap\"}",
+            "legendFormat": "{{job}} Heap Usage",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Memory Usage %",
+            "min": 0,
+            "max": 1
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 0.85,
+            "colorMode": "critical",
+            "op": "gt"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{job=~\".*springcrm.*\"}",
+            "legendFormat": "{{job}} Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "hikaricp_connections_max{job=~\".*springcrm.*\"}",
+            "legendFormat": "{{job}} Max Connections",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Connections",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "GC Pause Time",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{job=~\".*springcrm.*\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=~\".*springcrm.*\"}[5m])",
+            "legendFormat": "{{job}} Avg GC Pause",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "GC Pause Time (s)",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Pod Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(up{job=~\".*springcrm.*\"}) by (job)",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "horizontal"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Current RPS",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_total{job=~\".*springcrm.*\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Current Error Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_total{job=~\".*springcrm.*\", status=~\"5.*\"}[5m])) / sum(rate(http_server_requests_total{job=~\".*springcrm.*\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.01},
+                {"color": "red", "value": 0.05}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Average Response Time",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_sum{job=~\".*springcrm.*\"}[5m])) / sum(rate(http_server_requests_total{job=~\".*springcrm.*\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.5},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+# Ingress patch for production environment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: springcrm-ingress
+  annotations:
+    # Production-specific annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Enable SSL redirect in production
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Rate limiting for production
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    # Security headers (replaced configuration-snippet to avoid admission webhook denial)
+    nginx.ingress.kubernetes.io/server-snippet: |
+      add_header X-Environment "prod" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+spec:
+  tls:
+  - hosts:
+    - springcrm.com
+    secretName: springcrm-tls-secret
+  rules:
+  - host: springcrm.com
+    http:
+      paths:
+      # Frontend routes for production environment
+      - path: /prod/frontend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: prod-frontend
+            port:
+              number: 3000
+      
+      # API Gateway routes for production environment
+      - path: /prod/api-gateway(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080
+      
+      # Direct service routes for production debugging (consider removing in production)
+      - path: /prod/auth-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: prod-auth-service
+            port:
+              number: 8081
+      
+      - path: /prod/crm-service(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: prod-crm-service
+            port:
+              number: 8082

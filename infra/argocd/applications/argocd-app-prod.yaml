@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: springcrm-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: springcrm-prod
+    app.kubernetes.io/part-of: springcrm
+    environment: prod
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: springcrm
+  source:
+    repoURL: https://github.com/huylekha/SpringCRM.git
+    targetRevision: HEAD
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  syncPolicy:
+    # Production requires manual approval for safety
+    automated:
+      prune: false  # Disable auto-prune in production for safety
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    retry:
+      limit: 3  # Reduced retry limit for production
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  # Ignore differences in Secret data to allow manual secret management
+  ignoreDifferences:
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data
+    - /stringData
+  revisionHistoryLimit: 20  # Keep more history for production
+  info:
+  - name: 'Environment'
+    value: 'Production'
+  - name: 'Team'
+    value: 'SpringCRM Development Team'
+  - name: 'Description'
+    value: 'SpringCRM Production Environment - Auto-synced from k8s/overlays/prod'
+  - name: 'Warning'
+    value: 'PRODUCTION ENVIRONMENT - Handle with care!'
