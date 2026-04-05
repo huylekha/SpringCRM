@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +30,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
+
+  private static final UUID USER_ID = UUID.randomUUID();
+  private static final UUID ROLE_ID = UUID.randomUUID();
 
   @Mock private AuthUserRepository userRepository;
   @Mock private AuthRoleRepository roleRepository;
@@ -50,12 +54,11 @@ class UserServiceTest {
   void createUser_success() {
     when(userRepository.existsByUsernameAndDeletedFalse("newuser")).thenReturn(false);
     when(userRepository.existsByEmailAndDeletedFalse("new@test.com")).thenReturn(false);
-    when(permissionEvaluator.currentUserId()).thenReturn("admin-id");
     when(userRepository.save(any()))
         .thenAnswer(
             i -> {
               AuthUser u = i.getArgument(0);
-              u.setId("generated-id");
+              u.setId(UUID.randomUUID());
               return u;
             });
 
@@ -88,22 +91,20 @@ class UserServiceTest {
 
   @Test
   void updateStatus_lastSuperAdmin_preventDeactivation() {
-    AuthRole superAdmin =
-        AuthRole.builder().id("r1").roleCode("SUPER_ADMIN").roleName("SA").build();
+    AuthRole superAdmin = AuthRole.builder().roleCode("SUPER_ADMIN").roleName("SA").build();
+    superAdmin.setId(ROLE_ID);
+
     AuthUser user =
-        AuthUser.builder()
-            .id("u1")
-            .username("admin")
-            .status("ACTIVE")
-            .roles(Set.of(superAdmin))
-            .build();
-    when(userRepository.findByIdAndDeletedFalse("u1")).thenReturn(Optional.of(user));
+        AuthUser.builder().username("admin").status("ACTIVE").roles(Set.of(superAdmin)).build();
+    user.setId(USER_ID);
+
+    when(userRepository.findByIdAndDeletedFalse(USER_ID)).thenReturn(Optional.of(user));
     when(userRepository.countByRoles_RoleCodeAndDeletedFalse("SUPER_ADMIN")).thenReturn(1L);
 
     StatusUpdateRequest req = new StatusUpdateRequest();
     req.setStatus("INACTIVE");
 
-    assertThatThrownBy(() -> userService.updateStatus("u1", req))
+    assertThatThrownBy(() -> userService.updateStatus(USER_ID.toString(), req))
         .isInstanceOf(BusinessException.class)
         .hasFieldOrPropertyWithValue("code", "AUTH_031");
   }

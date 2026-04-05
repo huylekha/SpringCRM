@@ -1,8 +1,8 @@
 package com.company.platform.shared.messaging.inbox;
 
+import com.company.platform.shared.entity.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -16,11 +16,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InboxMessage {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class InboxMessage extends BaseEntityUUID {
 
   @Column(name = "message_id", nullable = false, unique = true, length = 255)
   private String messageId;
@@ -40,9 +36,6 @@ public class InboxMessage {
 
   @PrePersist
   public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
     if (this.processedAt == null) {
       this.processedAt = Instant.now();
     }

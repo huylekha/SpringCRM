@@ -10,7 +10,7 @@ spring:
     show-sql: true
     
   datasource:
-    url: jdbc:postgresql://localhost:5432/crm_platform
+    url: jdbc:postgresql://localhost:5432/springcrm_crm
     username: crm_user
     password: crm_password
     driver-class-name: org.postgresql.Driver

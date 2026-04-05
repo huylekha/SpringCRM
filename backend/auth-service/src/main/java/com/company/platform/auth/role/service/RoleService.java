@@ -16,6 +16,7 @@ import com.company.platform.shared.exception.ErrorCode;
 import com.company.platform.shared.exception.ResourceNotFoundException;
 import com.company.platform.shared.response.PageResponse;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,7 +42,6 @@ public class RoleService {
             .roleCode(request.getRoleCode().toUpperCase())
             .roleName(request.getRoleName())
             .description(request.getDescription())
-            .createdBy(permissionEvaluator.currentUserId())
             .build();
     role = roleRepository.save(role);
     return toRoleResponse(role);
@@ -55,7 +55,7 @@ public class RoleService {
             .map(
                 c ->
                     ClaimResponse.builder()
-                        .id(c.getId())
+                        .id(c.getId().toString())
                         .claimCode(c.getClaimCode())
                         .claimName(c.getClaimName())
                         .build())
@@ -65,14 +65,14 @@ public class RoleService {
             .map(
                 p ->
                     PermissionResponse.builder()
-                        .id(p.getId())
+                        .id(p.getId().toString())
                         .permissionCode(p.getPermissionCode())
                         .resourceName(p.getResourceName())
                         .actionName(p.getActionName())
                         .build())
             .toList();
     return RoleDetailResponse.builder()
-        .id(role.getId())
+        .id(role.getId().toString())
         .roleCode(role.getRoleCode())
         .roleName(role.getRoleName())
         .description(role.getDescription())
@@ -88,7 +88,6 @@ public class RoleService {
     AuthRole role = findActiveRole(id);
     if (request.getRoleName() != null) role.setRoleName(request.getRoleName());
     if (request.getDescription() != null) role.setDescription(request.getDescription());
-    role.setUpdatedBy(permissionEvaluator.currentUserId());
     role = roleRepository.save(role);
     return toRoleResponse(role);
   }
@@ -114,20 +113,19 @@ public class RoleService {
             .map(
                 cid ->
                     claimRepository
-                        .findByIdAndDeletedFalse(cid)
+                        .findByIdAndDeletedFalse(UUID.fromString(cid))
                         .orElseThrow(
                             () -> new ResourceNotFoundException(ErrorCode.AUTH_CLAIM_NOT_FOUND)))
             .toList();
     role.getClaims().addAll(claims);
-    role.setUpdatedBy(permissionEvaluator.currentUserId());
     roleRepository.save(role);
   }
 
   @Transactional
   public void removeClaim(String roleId, String claimId) {
     AuthRole role = findActiveRole(roleId);
-    role.getClaims().removeIf(c -> c.getId().equals(claimId));
-    role.setUpdatedBy(permissionEvaluator.currentUserId());
+    UUID claimUuid = UUID.fromString(claimId);
+    role.getClaims().removeIf(c -> c.getId().equals(claimUuid));
     roleRepository.save(role);
   }
 
@@ -139,38 +137,37 @@ public class RoleService {
             .map(
                 pid ->
                     permissionRepository
-                        .findByIdAndDeletedFalse(pid)
+                        .findByIdAndDeletedFalse(UUID.fromString(pid))
                         .orElseThrow(
                             () ->
                                 new ResourceNotFoundException(ErrorCode.AUTH_PERMISSION_NOT_FOUND)))
             .toList();
     role.getPermissions().addAll(perms);
-    role.setUpdatedBy(permissionEvaluator.currentUserId());
     roleRepository.save(role);
   }
 
   @Transactional
   public void removePermission(String roleId, String permissionId) {
     AuthRole role = findActiveRole(roleId);
-    role.getPermissions().removeIf(p -> p.getId().equals(permissionId));
-    role.setUpdatedBy(permissionEvaluator.currentUserId());
+    UUID permUuid = UUID.fromString(permissionId);
+    role.getPermissions().removeIf(p -> p.getId().equals(permUuid));
     roleRepository.save(role);
   }
 
   private AuthRole findActiveRole(String id) {
     return roleRepository
-        .findByIdAndDeletedFalse(id)
+        .findByIdAndDeletedFalse(UUID.fromString(id))
         .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTH_ROLE_NOT_FOUND));
   }
 
   private RoleResponse toRoleResponse(AuthRole r) {
     return RoleResponse.builder()
-        .id(r.getId())
+        .id(r.getId().toString())
         .roleCode(r.getRoleCode())
         .roleName(r.getRoleName())
         .description(r.getDescription())
         .createdAt(r.getCreatedAt())
-        .createdBy(r.getCreatedBy())
+        .createdBy(r.getCreatedBy() != null ? r.getCreatedBy().toString() : null)
         .build();
   }
 }

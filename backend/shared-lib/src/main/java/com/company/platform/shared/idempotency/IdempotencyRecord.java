@@ -1,8 +1,8 @@
 package com.company.platform.shared.idempotency;
 
+import com.company.platform.shared.entity.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -18,11 +18,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IdempotencyRecord {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class IdempotencyRecord extends BaseEntityUUID {
 
   @Column(name = "idempotency_key", nullable = false, unique = true, length = 255)
   private String idempotencyKey;
@@ -44,13 +40,6 @@ public class IdempotencyRecord {
 
   @Column(name = "expires_at", nullable = false)
   private Instant expiresAt;
-
-  @PrePersist
-  public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
-  }
 
   /** Check if this record has expired. */
   public boolean isExpired() {

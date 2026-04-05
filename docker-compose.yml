@@ -5,15 +5,16 @@ services:
     image: postgres:15-alpine
     container_name: crm-postgres
     environment:
-      POSTGRES_DB: crm_platform
       POSTGRES_USER: crm_user
       POSTGRES_PASSWORD: crm_password
+      POSTGRES_DB: springcrm_auth
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_platform"]
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d springcrm_auth"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -53,7 +54,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker,postgres
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: crm_platform
+      DB_NAME: springcrm_auth
       DB_USER: crm_user
       DB_PASSWORD: crm_password
       REDIS_HOST: redis
@@ -62,8 +63,6 @@ services:
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-replace_me}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-replace_me}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      SPRING_FLYWAY_ENABLED: false
-      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
       SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
     ports:
       - "8081:8081"
@@ -95,7 +94,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker,postgres
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: crm_platform
+      DB_NAME: springcrm_crm
       DB_USER: crm_user
       DB_PASSWORD: crm_password
       REDIS_HOST: redis
@@ -103,8 +102,6 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       SENTRY_DSN: ${SENTRY_DSN:-}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-}
-      SPRING_FLYWAY_ENABLED: false
-      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
       SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
     ports:
       - "8082:8082"

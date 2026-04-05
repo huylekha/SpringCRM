@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wildcard-springcrm-tls-secret
+  namespace: prod
+type: kubernetes.io/tls
+data:
+  # This is a placeholder - actual certificate data should be generated
+  # Run the following commands to generate the wildcard certificate:
+  # 
+  # 1. Create private key:
+  #    openssl genrsa -out wildcard-springcrm.key 2048
+  # 
+  # 2. Create certificate signing request with SAN:
+  #    openssl req -new -key wildcard-springcrm.key -out wildcard-springcrm.csr -config wildcard-cert.conf
+  # 
+  # 3. Generate self-signed certificate:
+  #    openssl x509 -req -in wildcard-springcrm.csr -signkey wildcard-springcrm.key -out wildcard-springcrm.crt -days 365 -extensions v3_req -extfile wildcard-cert.conf
+  # 
+  # 4. Base64 encode and update this secret:
+  #    kubectl create secret tls wildcard-springcrm-tls-secret --cert=wildcard-springcrm.crt --key=wildcard-springcrm.key --dry-run=client -o yaml
+  
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K

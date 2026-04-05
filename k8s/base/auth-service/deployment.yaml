@@ -6,6 +6,8 @@ metadata:
     app: auth-service
     component: backend
     tier: service
+    service-type: microservice
+    service-name: auth-service
 spec:
   replicas: 2
   strategy:
@@ -22,6 +24,8 @@ spec:
         app: auth-service
         component: backend
         tier: service
+        service-type: microservice
+        service-name: auth-service
     spec:
       containers:
       - name: auth-service

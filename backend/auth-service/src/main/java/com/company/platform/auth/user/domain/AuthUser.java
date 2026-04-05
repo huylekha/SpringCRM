@@ -1,28 +1,20 @@
 package com.company.platform.auth.user.domain;
 
+import com.company.platform.shared.entity.FullAuditEntityUUID;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "auth_user")
-@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AuthUser {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class AuthUser extends FullAuditEntityUUID {
 
   @Column(nullable = false, unique = true, length = 100)
   private String username;
@@ -46,27 +38,6 @@ public class AuthUser {
   @Builder.Default
   private int failedLoginAttempts = 0;
 
-  @CreatedDate
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
-
-  @Column(name = "created_by", nullable = false, updatable = false, length = 36)
-  private String createdBy;
-
-  @LastModifiedDate
-  @Column(name = "updated_at")
-  private Instant updatedAt;
-
-  @Column(name = "updated_by", length = 36)
-  private String updatedBy;
-
-  @Column(nullable = false)
-  @Builder.Default
-  private boolean deleted = false;
-
-  @Column(name = "deleted_at")
-  private Instant deletedAt;
-
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "auth_user_role",
@@ -74,11 +45,4 @@ public class AuthUser {
       inverseJoinColumns = @JoinColumn(name = "role_id"))
   @Builder.Default
   private Set<com.company.platform.auth.role.domain.AuthRole> roles = new HashSet<>();
-
-  @PrePersist
-  public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
-  }
 }

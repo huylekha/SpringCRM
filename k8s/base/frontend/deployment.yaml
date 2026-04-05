@@ -6,6 +6,8 @@ metadata:
     app: frontend
     component: frontend
     tier: web
+    service-type: frontend
+    service-name: frontend
 spec:
   replicas: 2
   strategy:
@@ -22,6 +24,8 @@ spec:
         app: frontend
         component: frontend
         tier: web
+        service-type: frontend
+        service-name: frontend
     spec:
       containers:
       - name: frontend

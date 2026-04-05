@@ -31,7 +31,6 @@ public class ClaimService {
         AuthClaim.builder()
             .claimCode(request.getClaimCode())
             .claimName(request.getClaimName())
-            .createdBy(permissionEvaluator.currentUserId())
             .build();
     claim = claimRepository.save(claim);
     return toResponse(claim);
@@ -52,7 +51,7 @@ public class ClaimService {
 
   private ClaimResponse toResponse(AuthClaim c) {
     return ClaimResponse.builder()
-        .id(c.getId())
+        .id(c.getId() != null ? c.getId().toString() : null)
         .claimCode(c.getClaimCode())
         .claimName(c.getClaimName())
         .build();

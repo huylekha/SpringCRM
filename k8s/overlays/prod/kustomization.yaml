@@ -6,6 +6,9 @@ namespace: prod
 resources:
 - ../../base
 - namespace.yaml
+- api-gateway-ingress.yaml
+- subdomain-ingress.yaml
+- tls-wildcard-cert.yaml
 
 patchesStrategicMerge:
 - configmap-patches.yaml

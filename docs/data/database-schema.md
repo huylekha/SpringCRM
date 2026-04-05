@@ -2,265 +2,150 @@
 
 ## 1. Database Strategy
 
-- Primary database engine: PostgreSQL 16+ (with MySQL compatibility available via profiles).
-- ID strategy: UUID (stored as `VARCHAR(36)` for readability; optional UUID native type optimization in later phase).
-- Audit and soft-delete columns are mandatory on domain tables.
-- Timezone standard: UTC.
+- Primary database engine: PostgreSQL 15+.
+- Database per Service: each microservice owns an isolated database.
+  - `auth-service` → `springcrm_auth`
+  - `crm-service` → `springcrm_crm`
+- ID strategy: UUID v7 (time-ordered), stored as native PostgreSQL `UUID` type.
+- Entity hierarchy: `BaseEntity<T>` → `AuditableEntity` → `SoftDeletableEntity` → `TenantEntity` → `FullAuditEntity`.
+- Timezone standard: UTC (all `TIMESTAMP` columns).
 
 ## 2. Shared Column Standards
 
-Each business table includes:
+Each business table extending `FullAuditEntityUUID` includes:
 
-- `id` (UUID PK)
-- `created_at` `TIMESTAMP(6)` not null
-- `created_by` `VARCHAR(36)` not null
-- `updated_at` `TIMESTAMP(6)` null
-- `updated_by` `VARCHAR(36)` null
-- `deleted` `BOOLEAN` not null default false
-- `deleted_at` `TIMESTAMP(6)` null
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | UUID | PK, auto-generated UUID v7 |
+| `created_at` | TIMESTAMP | NOT NULL, immutable |
+| `created_by` | UUID | auditor ID (nullable for system ops) |
+| `created_by_name` | VARCHAR(200) | snapshot of auditor name at creation |
+| `updated_at` | TIMESTAMP | set on every update |
+| `updated_by` | UUID | last updater ID |
+| `updated_by_name` | VARCHAR(200) | snapshot of updater name |
+| `deleted` | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| `deleted_at` | TIMESTAMP | set when soft-deleted |
+| `tenant_id` | VARCHAR(64) | NOT NULL, multi-tenancy key |
 
-## 3. IAM Service Schemas (3 Separate Databases)
+Audit and tenant fields are **automatically populated** by `AuditTenantEntityListener` via `RequestContext` (ThreadLocal) — no manual setting in service code.
 
-Following the **Database per Service** pattern, each IAM service owns an independent database.
-No cross-service FOREIGN KEY constraints exist between these databases.
-Cross-service references use `user_id` (UUID) as a **logical soft reference**.
+## 3. Auth Service DB — `springcrm_auth`
 
-### 3.1 Auth Service DB — `springcrm_auth`
-
-Owns only credential and session data. Profile and RBAC data are owned by their respective services.
-
-```sql
-CREATE TABLE auth_credentials (
-  id              CHAR(36)     PRIMARY KEY,
-  username        VARCHAR(100) NOT NULL UNIQUE,
-  password_hash   VARCHAR(255) NOT NULL,
-  status          VARCHAR(30)  NOT NULL DEFAULT 'ACTIVE',
-  failed_attempts INT          NOT NULL DEFAULT 0,
-  locked_until    DATETIME(6)  NULL,
-  last_login_at   DATETIME(6)  NULL,
-  created_at      DATETIME(6)  NOT NULL,
-  updated_at      DATETIME(6)  NULL,
-  INDEX idx_auth_cred_username (username),
-  INDEX idx_auth_cred_status (status)
-);
-
-CREATE TABLE auth_sessions (
-  id                 CHAR(36)     PRIMARY KEY,
-  user_id            CHAR(36)     NOT NULL,
-  refresh_token_hash VARCHAR(255) NOT NULL UNIQUE,
-  device_info        VARCHAR(255) NULL,
-  ip_address         VARCHAR(45)  NULL,
-  expires_at         DATETIME(6)  NOT NULL,
-  is_revoked         BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at         DATETIME(6)  NOT NULL,
-  INDEX idx_sessions_user_id (user_id),
-  INDEX idx_sessions_token_hash (refresh_token_hash),
-  INDEX idx_sessions_expires_revoked (expires_at, is_revoked)
-);
-```
-
-### 3.2 User Service DB — `springcrm_user`
-
-Owns all user biographical and contact profile data.
+### Tables
 
 ```sql
-CREATE TABLE user_profiles (
-  id           CHAR(36)     PRIMARY KEY,
-  full_name    VARCHAR(200) NOT NULL,
-  email        VARCHAR(255) NOT NULL UNIQUE,
-  phone        VARCHAR(50)  NULL,
-  avatar_url   VARCHAR(500) NULL,
-  department   VARCHAR(100) NULL,
-  position     VARCHAR(100) NULL,
-  status       VARCHAR(30)  NOT NULL DEFAULT 'ACTIVE',
-  created_at   DATETIME(6)  NOT NULL,
-  created_by   CHAR(36)     NOT NULL,
-  updated_at   DATETIME(6)  NULL,
-  updated_by   CHAR(36)     NULL,
-  deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-  deleted_at   DATETIME(6)  NULL,
-  INDEX idx_user_profiles_email (email),
-  INDEX idx_user_profiles_status_deleted (status, deleted),
-  INDEX idx_user_profiles_created_at (created_at)
-);
+-- Core RBAC tables
+auth_user             -- User credentials and profile
+auth_role             -- Role definitions
+auth_permission       -- Permission definitions (resource + action)
+auth_claim            -- Claim definitions
+auth_user_role        -- M:N user-role assignments
+auth_role_permission  -- M:N role-permission assignments
+auth_role_claim       -- M:N role-claim assignments
+auth_refresh_token    -- JWT refresh tokens (extends BaseEntityUUID)
+
+-- Messaging infrastructure
+outbox_messages       -- Transactional outbox for domain events
+inbox_messages        -- Deduplication of incoming messages
+idempotency_records   -- Request idempotency tracking
 ```
 
-### 3.3 ACL Service DB — `springcrm_acl`
+### Key Constraints
 
-Owns all RBAC definitions and user-role assignments.
+- `auth_user.username` — UNIQUE
+- `auth_user.email` — UNIQUE
+- `auth_role.role_code` — UNIQUE
+- `auth_permission.permission_code` — UNIQUE
+- `auth_claim.claim_code` — UNIQUE
+- `auth_refresh_token.token_hash` — UNIQUE
+
+## 4. CRM Service DB — `springcrm_crm`
+
+### Tables
 
 ```sql
-CREATE TABLE acl_roles (
-  id           CHAR(36)     PRIMARY KEY,
-  role_code    VARCHAR(80)  NOT NULL UNIQUE,
-  role_name    VARCHAR(120) NOT NULL,
-  description  VARCHAR(300) NULL,
-  is_system    BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at   DATETIME(6)  NOT NULL,
-  created_by   CHAR(36)     NOT NULL,
-  updated_at   DATETIME(6)  NULL,
-  updated_by   CHAR(36)     NULL,
-  deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
-  deleted_at   DATETIME(6)  NULL,
-  INDEX idx_acl_role_code (role_code)
-);
+-- Business tables
+orders                -- Customer orders (extends FullAuditEntityUUID)
+order_items           -- Order line items (extends BaseEntityUUID)
 
-CREATE TABLE acl_permissions (
-  id              CHAR(36)     PRIMARY KEY,
-  permission_code VARCHAR(150) NOT NULL UNIQUE,
-  resource_name   VARCHAR(80)  NOT NULL,
-  action_name     VARCHAR(80)  NOT NULL,
-  created_at      DATETIME(6)  NOT NULL,
-  created_by      CHAR(36)     NOT NULL,
-  deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
-  INDEX idx_acl_perm_resource_action (resource_name, action_name)
-);
-
-CREATE TABLE acl_claims (
-  id          CHAR(36)     PRIMARY KEY,
-  claim_code  VARCHAR(120) NOT NULL UNIQUE,
-  claim_name  VARCHAR(150) NOT NULL,
-  created_at  DATETIME(6)  NOT NULL,
-  created_by  CHAR(36)     NOT NULL,
-  deleted     BOOLEAN      NOT NULL DEFAULT FALSE
-);
-
-CREATE TABLE acl_user_roles (
-  id          CHAR(36)    PRIMARY KEY,
-  user_id     CHAR(36)    NOT NULL,
-  role_id     CHAR(36)    NOT NULL,
-  assigned_at DATETIME(6) NOT NULL,
-  assigned_by CHAR(36)    NOT NULL,
-  UNIQUE KEY uq_user_role (user_id, role_id),
-  INDEX idx_acl_user_roles_user_id (user_id),
-  CONSTRAINT fk_acl_user_roles_role FOREIGN KEY (role_id) REFERENCES acl_roles(id)
-);
-
-CREATE TABLE acl_role_permissions (
-  role_id       CHAR(36) NOT NULL,
-  permission_id CHAR(36) NOT NULL,
-  PRIMARY KEY (role_id, permission_id),
-  CONSTRAINT fk_rp_role FOREIGN KEY (role_id) REFERENCES acl_roles(id),
-  CONSTRAINT fk_rp_perm FOREIGN KEY (permission_id) REFERENCES acl_permissions(id)
-);
-
-CREATE TABLE acl_role_claims (
-  role_id  CHAR(36) NOT NULL,
-  claim_id CHAR(36) NOT NULL,
-  PRIMARY KEY (role_id, claim_id),
-  CONSTRAINT fk_rc_role FOREIGN KEY (role_id) REFERENCES acl_roles(id),
-  CONSTRAINT fk_rc_claim FOREIGN KEY (claim_id) REFERENCES acl_claims(id)
-);
+-- Messaging infrastructure
+outbox_messages       -- Transactional outbox for domain events
+inbox_messages        -- Deduplication of incoming messages
+idempotency_records   -- Request idempotency tracking
 ```
 
+### Key Constraints
 
-## 4. CRM Schema
+- `orders.order_number` — UNIQUE
+- FK: `order_items.order_id` → `orders.id`
 
-### 4.1 Core Aggregates
+## 5. Index Strategy
 
-- `crm_customer`
-- `crm_lead`
-- `crm_opportunity`
-- `crm_activity`
-- `crm_task`
-- `crm_note`
+### Auth Service
+- `idx_auth_user_status` — filter by active/inactive
+- `idx_auth_user_tenant` — tenant isolation queries
+- `idx_auth_role_tenant`, `idx_auth_permission_tenant`, `idx_auth_claim_tenant`
+- `idx_auth_refresh_token_user` — lookup by user
+- `idx_auth_refresh_token_expires` — cleanup expired tokens
 
-### 4.2 DDL Reference (CRM Core)
+### CRM Service
+- `idx_orders_customer` — orders by customer
+- `idx_orders_status` — filter by status
+- `idx_orders_tenant` — tenant isolation
+- `idx_orders_order_date` — date range queries
+- `idx_order_items_order` — items per order
 
-```sql
-CREATE TABLE crm_customer (
-  id CHAR(36) PRIMARY KEY,
-  customer_code VARCHAR(60) NOT NULL UNIQUE,
-  full_name VARCHAR(200) NOT NULL,
-  email VARCHAR(255) NULL,
-  phone VARCHAR(50) NULL,
-  company_name VARCHAR(200) NULL,
-  owner_user_id CHAR(36) NOT NULL,
-  status VARCHAR(40) NOT NULL,
-  source VARCHAR(60) NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL,
-  INDEX idx_customer_owner_status_deleted (owner_user_id, status, deleted),
-  INDEX idx_customer_name_deleted (full_name, deleted),
-  INDEX idx_customer_created_at (created_at)
-);
+### Messaging (both services)
+- `idx_outbox_messages_status` — pending message polling
+- `idx_inbox_messages_event_type` — dedup lookup
+- `idx_idempotency_records_expires` — cleanup expired records
 
-CREATE TABLE crm_lead (
-  id CHAR(36) PRIMARY KEY,
-  lead_code VARCHAR(60) NOT NULL UNIQUE,
-  customer_id CHAR(36) NULL,
-  title VARCHAR(200) NOT NULL,
-  contact_name VARCHAR(150) NULL,
-  contact_email VARCHAR(255) NULL,
-  contact_phone VARCHAR(50) NULL,
-  owner_user_id CHAR(36) NOT NULL,
-  status VARCHAR(40) NOT NULL,
-  priority VARCHAR(30) NOT NULL,
-  expected_value DECIMAL(18,2) NULL,
-  expected_close_date DATE NULL,
-  created_at DATETIME(6) NOT NULL,
-  created_by VARCHAR(36) NOT NULL,
-  updated_at DATETIME(6) NULL,
-  updated_by VARCHAR(36) NULL,
-  deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at DATETIME(6) NULL,
-  CONSTRAINT fk_lead_customer FOREIGN KEY (customer_id) REFERENCES crm_customer(id),
-  INDEX idx_lead_owner_status_deleted (owner_user_id, status, deleted),
-  INDEX idx_lead_expected_close_date (expected_close_date),
-  INDEX idx_lead_created_at (created_at)
-);
-```
+## 6. Migration and Seed Policy
 
-## 5. Index Strategy by Access Pattern
+- Migration tooling: **Flyway** (per-service, per-database).
+- Dependencies: `spring-boot-starter-flyway` + `flyway-database-postgresql`.
+- Flyway runs automatically at service startup (`spring.flyway.enabled: true`).
+- `baseline-on-migrate: true` — safe for new databases.
+- `ddl-auto: validate` — Hibernate validates schema matches entities after Flyway runs.
 
-- Authentication:
-  - unique indexes on `username`, `email`, token hash.
-  - `(user_id, revoked, expires_at)` for refresh token lookup.
-- CRM list/search:
-  - owner/status/deleted composite indexes.
-  - date-range indexes for timeline and due-date queries.
-  - code uniqueness per aggregate for stable external references.
+### Migration Files
 
-## 6. Search and Pagination Performance Rules
+**Auth Service** (`backend/auth-service/src/main/resources/db/migration/`):
+- `V1__init_auth_schema.sql` — all tables, constraints, indexes
+- `V2__seed_rbac_data.sql` — default roles, permissions, claims, admin user
 
-- All list/search queries must include `deleted = false`.
-- Default sort by `created_at DESC` unless client provides whitelisted fields.
+**CRM Service** (`backend/crm-service/src/main/resources/db/migration/`):
+- `V1__init_crm_schema.sql` — all tables, constraints, indexes
+
+### Naming Convention
+- Flyway standard: `V{version}__{description}.sql`
+- Schema-only changes: `V{N}__add_{feature}.sql`
+- Data migrations: `V{N}__seed_{data}.sql`
+
+## 7. K8s Database Configuration
+
+Each environment uses `namePrefix` in Kustomize, which prefixes all K8s resource names.
+Database hostname must match the prefixed postgres service name.
+
+| Environment | DB_HOST | Auth DB_NAME | CRM DB_NAME |
+|-------------|---------|--------------|-------------|
+| Dev | `dev-postgres` | `springcrm_auth` | `springcrm_crm` |
+| Staging | `staging-postgres` | `springcrm_auth` | `springcrm_crm` |
+| Production | `prod-postgres` | `springcrm_auth` | `springcrm_crm` |
+
+The postgres init script (`init-databases.sh` via ConfigMap) automatically creates the second database (`springcrm_crm`) on first startup.
+
+## 8. Data Integrity Rules
+
+- No hard deletes on business entities — use `softDelete()` method.
+- `@SQLRestriction("deleted = false")` applied via `SoftDeletableEntity`.
+- Hibernate `@Filter("tenantFilter")` enforces tenant isolation at query level.
+- Foreign key constraints for parent-child relationships within a service.
+- No cross-service foreign keys — use logical UUID references.
+- Optimistic locking where concurrent update conflicts are possible.
+
+## 9. Search and Pagination
+
+- All queries filter `deleted = false` automatically via `@SQLRestriction`.
+- Default sort: `created_at DESC`.
 - Maximum page size hard cap: `100`.
-- Query plan review required for any new dynamic filter field.
-
-## 7. Data Integrity Rules
-
-- Enforce foreign key constraints for ownership and parent-child relationships.
-- Prevent hard delete in application layer for CRM/auth business entities.
-- Apply optimistic locking where concurrent update conflicts are possible.
-
-## 8. Migration and Seed Policy
-
-- Migration tooling: Flyway (per-service, per-database).
-- Each service has its own Flyway migration path:
-
-  **Auth Service (`springcrm_auth`):**
-  - `V1__init_auth_credentials.sql`
-  - `V2__init_auth_sessions.sql`
-
-  **User Service (`springcrm_user`):**
-  - `V1__init_user_profiles.sql`
-  - `V2__seed_system_admin_profile.sql`
-
-  **ACL Service (`springcrm_acl`):**
-  - `V1__init_acl_schema.sql`
-  - `V2__seed_roles.sql`
-  - `V3__seed_permissions.sql`
-  - `V4__seed_role_permissions.sql`
-
-  **CRM Service (`springcrm_crm`):**
-  - `V1__init_crm_schema.sql`
-  - `V2__seed_crm_defaults.sql` (optional)
-
-- Seed includes baseline roles and permissions only, no business data.
-- Schema changes across services must be **backward compatible** — additive first.
-

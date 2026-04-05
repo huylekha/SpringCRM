@@ -3,6 +3,18 @@ import { ApiError, FieldError } from '@/types/api';
 import { isErrorCode as isValidErrorCode } from '@/types/error-codes';
 
 /**
+ * Check if error is an Axios error using duck typing
+ */
+function isAxiosError(error: unknown): error is AxiosError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'isAxiosError' in error &&
+    (error as any).isAxiosError === true
+  );
+}
+
+/**
  * Parse unknown error into structured ApiError
  * Handles AxiosError and extracts API error response
  */
@@ -10,14 +22,14 @@ export function parseApiError(error: unknown): ApiError | null {
   if (!error) return null;
 
   // Handle Axios errors with API error response
-  if (error instanceof AxiosError && error.response?.data) {
+  if (isAxiosError(error) && error.response?.data) {
     const data = error.response.data;
 
-    // Check if it matches ApiError structure
-    if (data.code && data.message) {
+    // Check if it matches ApiError structure (code is required, message is optional)
+    if (data.code) {
       return {
         code: data.code,
-        message: data.message,
+        message: data.message || '',
         traceId: data.traceId || 'unknown',
         timestamp: data.timestamp || new Date().toISOString(),
         details: data.details || [],
@@ -26,7 +38,7 @@ export function parseApiError(error: unknown): ApiError | null {
   }
 
   // Handle Axios errors without proper API error response
-  if (error instanceof AxiosError) {
+  if (isAxiosError(error)) {
     return {
       code: 'SYSTEM_500',
       message: error.message || 'Network error occurred',
@@ -52,16 +64,13 @@ export function parseApiError(error: unknown): ApiError | null {
 
 /**
  * Get translated error message with fallback strategy
- * 
+ *
  * Fallback chain:
  * 1. Translation from locale file (errors.{CODE})
  * 2. Backend message from API response
  * 3. Generic error message (errors.generic)
  */
-export function getErrorMessage(
-  error: unknown,
-  t: (key: string) => string
-): string {
+export function getErrorMessage(error: unknown, t: (key: string) => string): string {
   const apiError = parseApiError(error);
 
   if (!apiError) {
@@ -90,10 +99,7 @@ export function getErrorMessage(
  * Get first field error message
  * Useful for form validation display
  */
-export function getFirstFieldError(
-  error: unknown,
-  t: (key: string) => string
-): string | null {
+export function getFirstFieldError(error: unknown, t: (key: string) => string): string | null {
   const apiError = parseApiError(error);
 
   if (apiError?.details && apiError.details.length > 0) {
@@ -108,19 +114,20 @@ export function getFirstFieldError(
  * Get all field errors as a map
  * Useful for form field-level error display
  */
-export function getFieldErrors(
-  error: unknown
-): Record<string, string> | null {
+export function getFieldErrors(error: unknown): Record<string, string> | null {
   const apiError = parseApiError(error);
 
   if (!apiError?.details || apiError.details.length === 0) {
     return null;
   }
 
-  return apiError.details.reduce((acc, fieldError) => {
-    acc[fieldError.field] = fieldError.message;
-    return acc;
-  }, {} as Record<string, string>);
+  return apiError.details.reduce(
+    (acc, fieldError) => {
+      acc[fieldError.field] = fieldError.message;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
 }
 
 /**

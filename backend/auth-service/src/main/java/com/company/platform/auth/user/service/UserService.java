@@ -18,6 +18,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -52,11 +53,9 @@ public class UserService {
             .passwordHash(passwordEncoder.encode(request.getPassword()))
             .fullName(request.getFullName())
             .status(request.getStatus() != null ? request.getStatus() : "ACTIVE")
-            .createdBy(permissionEvaluator.currentUserId())
             .build();
     user = userRepository.save(user);
 
-    // Track user registration
     Counter.builder("user.registrations")
         .tag("status", user.getStatus())
         .register(meterRegistry)
@@ -84,7 +83,6 @@ public class UserService {
     if (request.getFullName() != null) {
       user.setFullName(request.getFullName());
     }
-    user.setUpdatedBy(permissionEvaluator.currentUserId());
     user = userRepository.save(user);
     return toUserResponse(user);
   }
@@ -103,10 +101,8 @@ public class UserService {
       }
     }
     user.setStatus(newStatus);
-    user.setUpdatedBy(permissionEvaluator.currentUserId());
     user = userRepository.save(user);
 
-    // Track status changes
     Counter.builder("user.status.changes")
         .tag("new_status", newStatus)
         .register(meterRegistry)
@@ -129,14 +125,13 @@ public class UserService {
   @Transactional
   public AssignRolesResponse assignRoles(String userId, AssignRolesRequest request) {
     AuthUser user = findActiveUser(userId);
-    String currentUserId = permissionEvaluator.currentUserId();
 
     List<AuthRole> rolesToAssign =
         request.getRoleIds().stream()
             .map(
                 roleId ->
                     roleRepository
-                        .findByIdAndDeletedFalse(roleId)
+                        .findByIdAndDeletedFalse(UUID.fromString(roleId))
                         .orElseThrow(
                             () -> new ResourceNotFoundException(ErrorCode.AUTH_ROLE_NOT_FOUND)))
             .toList();
@@ -144,7 +139,10 @@ public class UserService {
     boolean assignsSuperAdmin =
         rolesToAssign.stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getRoleCode()));
     if (assignsSuperAdmin) {
-      AuthUser actor = userRepository.findByIdAndDeletedFalse(currentUserId).orElse(null);
+      AuthUser actor =
+          userRepository
+              .findByIdAndDeletedFalse(permissionEvaluator.currentUserIdAsUUID())
+              .orElse(null);
       boolean actorIsSuperAdmin =
           actor != null
               && actor.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getRoleCode()));
@@ -154,7 +152,6 @@ public class UserService {
     }
 
     user.getRoles().addAll(rolesToAssign);
-    user.setUpdatedBy(currentUserId);
     user = userRepository.save(user);
 
     List<RoleSummary> summaries =
@@ -162,31 +159,31 @@ public class UserService {
             .map(
                 r ->
                     RoleSummary.builder()
-                        .id(r.getId())
+                        .id(r.getId().toString())
                         .roleCode(r.getRoleCode())
                         .roleName(r.getRoleName())
                         .build())
             .toList();
 
     return AssignRolesResponse.builder()
-        .userId(user.getId())
+        .userId(user.getId().toString())
         .roles(summaries)
         .assignedAt(Instant.now())
-        .assignedBy(currentUserId)
+        .assignedBy(permissionEvaluator.currentUserId())
         .build();
   }
 
   @Transactional
   public void removeRole(String userId, String roleId) {
     AuthUser user = findActiveUser(userId);
-    user.getRoles().removeIf(r -> r.getId().equals(roleId));
-    user.setUpdatedBy(permissionEvaluator.currentUserId());
+    UUID roleUuid = UUID.fromString(roleId);
+    user.getRoles().removeIf(r -> r.getId().equals(roleUuid));
     userRepository.save(user);
   }
 
   private AuthUser findActiveUser(String id) {
     return userRepository
-        .findByIdAndDeletedFalse(id)
+        .findByIdAndDeletedFalse(UUID.fromString(id))
         .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND));
   }
 
@@ -200,13 +197,13 @@ public class UserService {
 
   private UserResponse toUserResponse(AuthUser u) {
     return UserResponse.builder()
-        .id(u.getId())
+        .id(u.getId().toString())
         .username(u.getUsername())
         .email(u.getEmail())
         .fullName(u.getFullName())
         .status(u.getStatus())
         .createdAt(u.getCreatedAt())
-        .createdBy(u.getCreatedBy())
+        .createdBy(u.getCreatedBy() != null ? u.getCreatedBy().toString() : null)
         .build();
   }
 
@@ -216,13 +213,13 @@ public class UserService {
             .map(
                 r ->
                     RoleSummary.builder()
-                        .id(r.getId())
+                        .id(r.getId().toString())
                         .roleCode(r.getRoleCode())
                         .roleName(r.getRoleName())
                         .build())
             .toList();
     return UserDetailResponse.builder()
-        .id(u.getId())
+        .id(u.getId().toString())
         .username(u.getUsername())
         .email(u.getEmail())
         .fullName(u.getFullName())
@@ -230,9 +227,9 @@ public class UserService {
         .roles(roles)
         .lastLoginAt(u.getLastLoginAt())
         .createdAt(u.getCreatedAt())
-        .createdBy(u.getCreatedBy())
+        .createdBy(u.getCreatedBy() != null ? u.getCreatedBy().toString() : null)
         .updatedAt(u.getUpdatedAt())
-        .updatedBy(u.getUpdatedBy())
+        .updatedBy(u.getUpdatedBy() != null ? u.getUpdatedBy().toString() : null)
         .build();
   }
 

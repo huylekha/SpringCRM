@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: springcrm-monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: springcrm-monitoring
+    app.kubernetes.io/part-of: springcrm
+    environment: shared
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: springcrm
+  source:
+    repoURL: https://github.com/huylekha/SpringCRM.git
+    targetRevision: HEAD
+    path: k8s/ingress
+    directory:
+      include: monitoring-subdomain-ingress.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  info:
+  - name: 'Environment'
+    value: 'Shared Monitoring'
+  - name: 'Team'
+    value: 'SpringCRM DevOps Team'
+  - name: 'Description'
+    value: 'SpringCRM Monitoring Ingress - Subdomain routing for Grafana/Prometheus'

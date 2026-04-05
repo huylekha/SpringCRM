@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpringCRM Service Discovery Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .health-indicator {
+            animation: pulse 2s infinite;
+        }
+        .health-checking {
+            background: linear-gradient(45deg, #f3f4f6, #e5e7eb);
+            background-size: 400% 400%;
+            animation: gradient 1.5s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">S</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900">SpringCRM Service Discovery</h1>
+                        <p class="text-sm text-gray-500">Comprehensive service endpoint dashboard</p>
+                    </div>
+                </div>
+                
+                <!-- Environment Selector -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm font-medium text-gray-700">Environment:</label>
+                        <select id="environmentSelector" class="rounded-md border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="development">Development</option>
+                            <option value="staging">Staging</option>
+                            <option value="production">Production</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Health Check Toggle -->
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm font-medium text-gray-700">Health Checks:</label>
+                        <button id="healthToggle" class="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700 transition-colors">
+                            <i data-lucide="activity" class="w-4 h-4 inline mr-1"></i>
+                            Enabled
+                        </button>
+                    </div>
+                    
+                    <!-- Refresh Button -->
+                    <button id="refreshButton" class="bg-gray-600 text-white px-3 py-1 rounded-md text-sm hover:bg-gray-700 transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Environment Info -->
+        <div id="environmentInfo" class="mb-8 p-4 rounded-lg border fade-in">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Service Categories -->
+        <div id="serviceCategories" class="space-y-8">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-12 bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button onclick="setupSubdomains()" class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>
+                    <span class="text-sm font-medium">Setup Subdomains</span>
+                </button>
+                <button onclick="generateCertificate()" class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <i data-lucide="shield" class="w-5 h-5 text-green-600"></i>
+                    <span class="text-sm font-medium">Generate TLS Cert</span>
+                </button>
+                <button onclick="viewLogs()" class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <i data-lucide="file-text" class="w-5 h-5 text-yellow-600"></i>
+                    <span class="text-sm font-medium">View Logs</span>
+                </button>
+                <button onclick="exportConfig()" class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <i data-lucide="download" class="w-5 h-5 text-purple-600"></i>
+                    <span class="text-sm font-medium">Export Config</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between text-sm text-gray-500">
+                <div>
+                    <span>SpringCRM Service Dashboard v1.0.0</span>
+                    <span class="mx-2">•</span>
+                    <span id="lastUpdated">Last updated: Loading...</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/docs/setup/subdomain-migration-guide.md" class="hover:text-gray-700">Migration Guide</a>
+                    <a href="/MONITORING-ACCESS.md" class="hover:text-gray-700">Access Guide</a>
+                    <a href="https://github.com/huylekha/SpringCRM" class="hover:text-gray-700">GitHub</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let config = {};
+        let currentEnvironment = 'development';
+        let healthChecksEnabled = true;
+        let healthCheckInterval;
+
+        // Load configuration and initialize dashboard
+        async function loadConfig() {
+            try {
+                // Embedded configuration to avoid CORS issues with file:// protocol
+                config = {
+  "title": "SpringCRM Service Discovery Dashboard",
+  "version": "1.0.0",
+  "lastUpdated": "2026-04-04T13:20:00Z",
+  "environments": {
+    "development": {
+      "name": "Development",
+      "color": "#10B981",
+      "protocol": "http",
+      "description": "Local development environment"
+    },
+    "staging": {
+      "name": "Staging", 
+      "color": "#F59E0B",
+      "protocol": "http",
+      "description": "Pre-production testing environment"
+    },
+    "production": {
+      "name": "Production",
+      "color": "#EF4444", 
+      "protocol": "https",
+      "description": "Live production environment"
+    }
+  },
+  "services": {
+    "frontend": {
+      "name": "Frontend Application",
+      "description": "Next.js React application - main user interface",
+      "category": "Application",
+      "icon": "🖥️",
+      "endpoints": {
+        "development": {
+          "main": "http://dev.springcrm.com",
+          "health": "http://dev.springcrm.com/api/health",
+          "legacy": "http://springcrm.com/dev/frontend",
+          "status": "operational",
+          "note": "Microservices architecture - frontend on dedicated subdomain"
+        },
+        "staging": {
+          "main": "http://staging.springcrm.com",
+          "health": "http://staging.springcrm.com/api/health",
+          "legacy": "http://springcrm.com/staging/frontend",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory"
+        },
+        "production": {
+          "main": "https://springcrm.com",
+          "health": "https://springcrm.com/api/health",
+          "legacy": "https://springcrm.com/prod/frontend",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory"
+        }
+      },
+      "documentation": "/docs/frontend/README.md",
+      "repository": "frontend/"
+    },
+    "api-gateway": {
+      "name": "API Gateway",
+      "description": "Spring Cloud Gateway - API routing and load balancing",
+      "category": "Gateway",
+      "icon": "🚪",
+      "endpoints": {
+        "development": {
+          "gateway": "http://dev.api.springcrm.com",
+          "health": "http://dev.api.springcrm.com/actuator/health",
+          "metrics": "http://dev.api.springcrm.com/actuator/metrics",
+          "api_v1": "http://dev.api.springcrm.com/api/v1",
+          "legacy": "http://springcrm.com/dev/api-gateway",
+          "status": "operational",
+          "note": "Microservices gateway - routes all API traffic to backend services"
+        },
+        "staging": {
+          "gateway": "http://staging.api.springcrm.com",
+          "health": "http://staging.api.springcrm.com/actuator/health",
+          "metrics": "http://staging.api.springcrm.com/actuator/metrics",
+          "api_v1": "http://staging.api.springcrm.com/api/v1",
+          "legacy": "http://springcrm.com/staging/api-gateway",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory"
+        },
+        "production": {
+          "gateway": "https://api.springcrm.com",
+          "health": "https://api.springcrm.com/actuator/health",
+          "metrics": "https://api.springcrm.com/actuator/metrics",
+          "api_v1": "https://api.springcrm.com/api/v1",
+          "legacy": "https://springcrm.com/prod/api-gateway",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory"
+        }
+      },
+      "documentation": "/docs/backend/api-gateway.md",
+      "repository": "backend/api-gateway/"
+    },
+    "auth-service": {
+      "name": "Authentication Service",
+      "description": "Spring Boot service - user authentication and authorization",
+      "category": "Microservice",
+      "icon": "🔐",
+      "endpoints": {
+        "development": {
+          "health": "http://dev.springcrm.com/auth-service/actuator/health",
+          "metrics": "http://dev.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "http://springcrm.com/dev/auth-service",
+          "status": "403-restricted",
+          "note": "Returns 403 Forbidden - service running but requires authentication headers"
+        },
+        "staging": {
+          "health": "http://staging.springcrm.com/auth-service/actuator/health",
+          "metrics": "http://staging.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "http://springcrm.com/staging/auth-service",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory"
+        },
+        "production": {
+          "health": "https://prod.springcrm.com/auth-service/actuator/health",
+          "metrics": "https://prod.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "https://springcrm.com/prod/auth-service",
+          "status": "scaled-down", 
+          "note": "Services scaled down to free memory"
+        }
+      },
+      "documentation": "/docs/backend/auth-service.md",
+      "repository": "backend/auth-service/"
+    },
+    "crm-service": {
+      "name": "CRM Service",
+      "description": "Spring Boot service - customer relationship management",
+      "category": "Microservice", 
+      "icon": "👥",
+      "status": "operational",
+      "endpoints": {
+        "development": {
+          "health": "http://dev.springcrm.com/crm-service/actuator/health",
+          "metrics": "http://dev.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "http://springcrm.com/dev/crm-service",
+          "direct": "http://localhost:8082/actuator/health",
+          "note": "Service running - ingress routing issue. Use port-forward for direct access: kubectl port-forward -n dev $(kubectl get pods -n dev -l app=crm-service -o jsonpath='{.items[0].metadata.name}') 8082:8082"
+        },
+        "staging": {
+          "health": "http://staging.springcrm.com/crm-service/actuator/health",
+          "metrics": "http://staging.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "http://springcrm.com/staging/crm-service",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory - use 'kubectl scale deployment --all --replicas=1 -n staging' to restore"
+        },
+        "production": {
+          "health": "https://prod.springcrm.com/crm-service/actuator/health",
+          "metrics": "https://prod.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "https://springcrm.com/prod/crm-service",
+          "status": "scaled-down",
+          "note": "Services scaled down to free memory - use 'kubectl scale deployment --all --replicas=1 -n prod' to restore"
+        }
+      },
+      "documentation": "/docs/backend/crm-service.md",
+      "repository": "backend/crm-service/"
+    },
+    "grafana": {
+      "name": "Grafana",
+      "description": "Monitoring dashboard and visualization platform",
+      "category": "Monitoring",
+      "icon": "📊",
+      "endpoints": {
+        "development": {
+          "main": "http://grafana.springcrm.com",
+          "legacy": "http://springcrm.com/grafana",
+          "status": "operational",
+          "note": "Fully operational - redirects to login page (normal behavior)"
+        },
+        "staging": {
+          "main": "http://grafana.springcrm.com",
+          "legacy": "http://springcrm.com/grafana"
+        },
+        "production": {
+          "main": "https://grafana.springcrm.com",
+          "legacy": "https://springcrm.com/grafana"
+        }
+      },
+      "credentials": {
+        "username": "admin",
+        "note": "Password available in MONITORING-ACCESS.md"
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "prometheus": {
+      "name": "Prometheus",
+      "description": "Metrics collection and monitoring system",
+      "category": "Monitoring",
+      "icon": "🔍",
+      "endpoints": {
+        "development": {
+          "main": "http://prometheus.springcrm.com",
+          "legacy": "http://springcrm.com/prometheus",
+          "status": "operational",
+          "note": "Fully operational - redirects to /prometheus (normal behavior)"
+        },
+        "staging": {
+          "main": "http://prometheus.springcrm.com",
+          "legacy": "http://springcrm.com/prometheus"
+        },
+        "production": {
+          "main": "https://prometheus.springcrm.com",
+          "legacy": "https://springcrm.com/prometheus"
+        }
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "alertmanager": {
+      "name": "AlertManager",
+      "description": "Alert handling and notification system",
+      "category": "Monitoring",
+      "icon": "🚨",
+      "endpoints": {
+        "development": {
+          "main": "http://alertmanager.springcrm.com"
+        },
+        "staging": {
+          "main": "http://alertmanager.springcrm.com"
+        },
+        "production": {
+          "main": "https://alertmanager.springcrm.com"
+        }
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "docker-registry": {
+      "name": "Docker Registry",
+      "description": "Local Docker image registry",
+      "category": "Infrastructure",
+      "icon": "🐳",
+      "endpoints": {
+        "development": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        },
+        "staging": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        },
+        "production": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        }
+      },
+      "documentation": "/docs/devops/docker-build-templates.md"
+    }
+  },
+  "categories": {
+    "Application": {
+      "name": "Applications",
+      "color": "#3B82F6",
+      "description": "Main user-facing applications"
+    },
+    "API": {
+      "name": "API Services",
+      "color": "#8B5CF6",
+      "description": "API gateways and routing services"
+    },
+    "Microservice": {
+      "name": "Microservices",
+      "color": "#06B6D4",
+      "description": "Backend business logic services"
+    },
+    "Monitoring": {
+      "name": "Monitoring",
+      "color": "#F59E0B",
+      "description": "Observability and monitoring tools"
+    },
+    "Infrastructure": {
+      "name": "Infrastructure",
+      "color": "#6B7280",
+      "description": "Supporting infrastructure services"
+    }
+  },
+  "cluster-info": {
+    "memory-optimized": true,
+    "prod-services": "scaled-down",
+    "staging-services": "scaled-down",
+    "note": "Production and staging services scaled down to free memory for development environment",
+    "active-namespaces": ["dev", "monitoring", "ingress-nginx", "argocd"],
+    "scaled-down-namespaces": ["prod", "staging"]
+  },
+  "troubleshooting": {
+    "crm-service": {
+      "direct-access": "kubectl port-forward -n dev $(kubectl get pods -n dev -l app=crm-service -o jsonpath='{.items[0].metadata.name}') 8082:8082",
+      "health-check": "curl http://localhost:8082/actuator/health",
+      "logs": "kubectl logs -f -n dev -l app=crm-service",
+      "pod-status": "kubectl get pods -n dev -l app=crm-service"
+    },
+    "auth-service": {
+      "note": "Service returns 403 - requires proper authentication headers",
+      "direct-access": "kubectl port-forward -n dev $(kubectl get pods -n dev -l app=auth-service -o jsonpath='{.items[0].metadata.name}') 8081:8081"
+    },
+    "general": {
+      "check-ingress": "kubectl get ingress -n dev",
+      "check-services": "kubectl get svc -n dev",
+      "check-pods": "kubectl get pods -n dev"
+    }
+  }
+};
+                
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${new Date(config.lastUpdated).toLocaleString()}`;
+                
+                renderEnvironmentInfo();
+                renderServiceCategories();
+                startHealthChecks();
+                
+            } catch (error) {
+                console.error('Failed to load configuration:', error);
+                showError('Failed to load embedded configuration. Please check console for details.');
+            }
+        }
+
+        // Render environment information
+        function renderEnvironmentInfo() {
+            const env = config.environments[currentEnvironment];
+            const infoDiv = document.getElementById('environmentInfo');
+            
+            infoDiv.className = `mb-8 p-4 rounded-lg border fade-in border-${getColorClass(env.color)}-200 bg-${getColorClass(env.color)}-50`;
+            infoDiv.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 rounded-full" style="background-color: ${env.color}"></div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">${env.name} Environment</h2>
+                            <p class="text-sm text-gray-600">${env.description} • Protocol: ${env.protocol.toUpperCase()}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500">Total Services</div>
+                        <div class="text-2xl font-bold text-gray-900">${Object.keys(config.services).length}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render service categories
+        function renderServiceCategories() {
+            const categoriesDiv = document.getElementById('serviceCategories');
+            categoriesDiv.innerHTML = '';
+
+            // Group services by category
+            const servicesByCategory = {};
+            Object.entries(config.services).forEach(([serviceId, service]) => {
+                if (!servicesByCategory[service.category]) {
+                    servicesByCategory[service.category] = [];
+                }
+                servicesByCategory[service.category].push({ id: serviceId, ...service });
+            });
+
+            // Render each category
+            Object.entries(servicesByCategory).forEach(([categoryId, services]) => {
+                const category = config.categories[categoryId];
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'fade-in';
+                categoryDiv.innerHTML = `
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full" style="background-color: ${category.color}"></div>
+                                <h3 class="text-lg font-semibold text-gray-900">${category.name}</h3>
+                                <span class="text-sm text-gray-500">(${services.length} services)</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1">${category.description}</p>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                ${services.map(service => renderServiceCard(service)).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                categoriesDiv.appendChild(categoryDiv);
+            });
+        }
+
+        // Render individual service card
+        function renderServiceCard(service) {
+            const endpoints = service.endpoints[currentEnvironment] || {};
+            
+            return `
+                <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-2xl">${service.icon}</span>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">${service.name}</h4>
+                                <p class="text-xs text-gray-500">${service.description}</p>
+                            </div>
+                        </div>
+                        <div id="health-${service.id}" class="w-3 h-3 rounded-full bg-gray-300"></div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        ${Object.entries(endpoints).map(([type, url]) => `
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-medium text-gray-600 capitalize">${type}:</span>
+                                <div class="flex items-center space-x-2">
+                                    <a href="${url}" target="_blank" 
+                                       class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-48" 
+                                       title="${url}">
+                                        ${url.replace(/^https?:\/\//, '')}
+                                    </a>
+                                    <button onclick="copyToClipboard('${url}')" 
+                                            class="text-gray-400 hover:text-gray-600" 
+                                            title="Copy URL">
+                                        <i data-lucide="copy" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    ${service.documentation ? `
+                        <div class="mt-3 pt-3 border-t">
+                            <a href="${service.documentation}" 
+                               class="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1">
+                                <i data-lucide="book-open" class="w-3 h-3"></i>
+                                <span>Documentation</span>
+                            </a>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Health check functionality
+        async function checkServiceHealth(serviceId, service) {
+            const endpoints = service.endpoints[currentEnvironment] || {};
+            const healthUrl = endpoints.health || endpoints.main;
+            
+            if (!healthUrl) return;
+
+            const healthIndicator = document.getElementById(`health-${serviceId}`);
+            if (!healthIndicator) return;
+
+            try {
+                healthIndicator.className = 'w-3 h-3 rounded-full health-checking';
+                
+                const response = await fetch(healthUrl, { 
+                    method: 'GET',
+                    mode: 'no-cors' // Handle CORS issues
+                });
+                
+                // Since we're using no-cors, we can't read the response
+                // but if no error is thrown, assume the service is reachable
+                healthIndicator.className = 'w-3 h-3 rounded-full bg-green-500 health-indicator';
+                healthIndicator.title = 'Service is healthy';
+                
+            } catch (error) {
+                healthIndicator.className = 'w-3 h-3 rounded-full bg-red-500 health-indicator';
+                healthIndicator.title = 'Service is unreachable';
+            }
+        }
+
+        // Start health checks
+        function startHealthChecks() {
+            if (!healthChecksEnabled) return;
+            
+            // Initial health check
+            Object.entries(config.services).forEach(([serviceId, service]) => {
+                checkServiceHealth(serviceId, service);
+            });
+            
+            // Set up interval for continuous health checks
+            healthCheckInterval = setInterval(() => {
+                if (healthChecksEnabled) {
+                    Object.entries(config.services).forEach(([serviceId, service]) => {
+                        checkServiceHealth(serviceId, service);
+                    });
+                }
+            }, 30000); // Check every 30 seconds
+        }
+
+        // Event handlers
+        document.getElementById('environmentSelector').addEventListener('change', (e) => {
+            currentEnvironment = e.target.value;
+            renderEnvironmentInfo();
+            renderServiceCategories();
+            if (healthChecksEnabled) {
+                setTimeout(startHealthChecks, 500); // Delay to allow DOM to update
+            }
+        });
+
+        document.getElementById('healthToggle').addEventListener('click', (e) => {
+            healthChecksEnabled = !healthChecksEnabled;
+            const button = e.target.closest('button');
+            
+            if (healthChecksEnabled) {
+                button.innerHTML = '<i data-lucide="activity" class="w-4 h-4 inline mr-1"></i>Enabled';
+                button.className = 'bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700 transition-colors';
+                startHealthChecks();
+            } else {
+                button.innerHTML = '<i data-lucide="activity-square" class="w-4 h-4 inline mr-1"></i>Disabled';
+                button.className = 'bg-gray-600 text-white px-3 py-1 rounded-md text-sm hover:bg-gray-700 transition-colors';
+                if (healthCheckInterval) {
+                    clearInterval(healthCheckInterval);
+                }
+                // Reset all health indicators
+                document.querySelectorAll('[id^="health-"]').forEach(indicator => {
+                    indicator.className = 'w-3 h-3 rounded-full bg-gray-300';
+                    indicator.title = 'Health checks disabled';
+                });
+            }
+            lucide.createIcons(); // Refresh icons
+        });
+
+        document.getElementById('refreshButton').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // Utility functions
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('URL copied to clipboard!');
+            }).catch(() => {
+                showNotification('Failed to copy URL', 'error');
+            });
+        }
+
+        function getColorClass(hexColor) {
+            const colorMap = {
+                '#10B981': 'green',
+                '#F59E0B': 'yellow', 
+                '#EF4444': 'red',
+                '#3B82F6': 'blue',
+                '#8B5CF6': 'purple',
+                '#06B6D4': 'cyan',
+                '#6B7280': 'gray'
+            };
+            return colorMap[hexColor] || 'gray';
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-2 rounded-md text-white z-50 ${
+                type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        // Quick action functions
+        function setupSubdomains() {
+            const command = '.\\scripts\\setup-local-domain.ps1 -BatchSetup';
+            copyToClipboard(command);
+            showNotification('PowerShell command copied! Run as Administrator.');
+        }
+
+        function generateCertificate() {
+            const command = '.\\scripts\\generate-wildcard-cert.ps1 -ApplyToCluster';
+            copyToClipboard(command);
+            showNotification('Certificate generation command copied!');
+        }
+
+        function viewLogs() {
+            const command = 'kubectl logs -n dev deployment/dev-crm-service --tail=50';
+            copyToClipboard(command);
+            showNotification('Kubectl logs command copied!');
+        }
+
+        function exportConfig() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "springcrm-config.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showNotification('Configuration exported successfully!');
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

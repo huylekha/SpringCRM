@@ -1,0 +1,10 @@
+# SpringCRM Subdomain Entries - Copy these lines to your hosts file
+# Location: C:\Windows\System32\drivers\etc\hosts
+
+127.0.0.1	api.springcrm.com
+127.0.0.1	grafana.springcrm.com
+127.0.0.1	prometheus.springcrm.com
+127.0.0.1	alertmanager.springcrm.com
+127.0.0.1	dev.springcrm.com
+127.0.0.1	staging.springcrm.com
+127.0.0.1	prod.springcrm.com

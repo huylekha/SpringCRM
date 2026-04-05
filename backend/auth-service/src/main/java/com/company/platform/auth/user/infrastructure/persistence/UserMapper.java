@@ -3,17 +3,13 @@ package com.company.platform.auth.user.infrastructure.persistence;
 import com.company.platform.auth.user.domain.AuthUser;
 import com.company.platform.auth.user.domain.User;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
-/**
- * Mapper between domain User and JPA AuthUser. Handles the conversion between persistence-ignorant
- * domain objects and JPA entities.
- */
 @Component
 public class UserMapper {
 
-  /** Convert domain User to JPA AuthUser entity. */
   public AuthUser toJpaEntity(User user) {
     if (user == null) {
       return null;
@@ -21,7 +17,6 @@ public class UserMapper {
 
     AuthUser entity =
         AuthUser.builder()
-            .id(user.getId())
             .username(user.getUsername())
             .email(user.getEmail())
             .passwordHash(user.getPasswordHash())
@@ -29,11 +24,11 @@ public class UserMapper {
             .fullName(user.getFullName())
             .lastLoginAt(user.getLastLoginAt())
             .failedLoginAttempts(user.getFailedLoginAttempts())
-            .createdBy(user.getCreatedBy())
-            .updatedBy(user.getUpdatedBy())
             .build();
 
-    // Set audit fields manually since they might come from domain
+    if (user.getId() != null) {
+      entity.setId(UUID.fromString(user.getId()));
+    }
     if (user.getCreatedAt() != null) {
       entity.setCreatedAt(user.getCreatedAt());
     }
@@ -44,20 +39,20 @@ public class UserMapper {
     return entity;
   }
 
-  /** Convert JPA AuthUser entity to domain User. */
   public User toDomainEntity(AuthUser entity) {
     if (entity == null) {
       return null;
     }
 
-    // Extract role IDs from the roles collection
     Set<String> roleIds =
         entity.getRoles() != null
-            ? entity.getRoles().stream().map(role -> role.getId()).collect(Collectors.toSet())
+            ? entity.getRoles().stream()
+                .map(role -> role.getId().toString())
+                .collect(Collectors.toSet())
             : Set.of();
 
     return User.builder()
-        .id(entity.getId())
+        .id(entity.getId() != null ? entity.getId().toString() : null)
         .username(entity.getUsername())
         .email(entity.getEmail())
         .passwordHash(entity.getPasswordHash())
@@ -66,9 +61,9 @@ public class UserMapper {
         .lastLoginAt(entity.getLastLoginAt())
         .failedLoginAttempts(entity.getFailedLoginAttempts())
         .roleIds(roleIds)
-        .createdBy(entity.getCreatedBy())
+        .createdBy(entity.getCreatedBy() != null ? entity.getCreatedBy().toString() : null)
         .createdAt(entity.getCreatedAt())
-        .updatedBy(entity.getUpdatedBy())
+        .updatedBy(entity.getUpdatedBy() != null ? entity.getUpdatedBy().toString() : null)
         .updatedAt(entity.getUpdatedAt())
         .build();
   }

@@ -1,9 +1,9 @@
 package com.company.platform.crm.order.infrastructure.persistence;
 
+import com.company.platform.shared.entity.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -19,11 +19,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderItemJpaEntity {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class OrderItemJpaEntity extends BaseEntityUUID {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "order_id", nullable = false)
@@ -44,11 +40,4 @@ public class OrderItemJpaEntity {
   @CreatedDate
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
-
-  @PrePersist
-  public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
-  }
 }

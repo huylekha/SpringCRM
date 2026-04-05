@@ -296,4 +296,4 @@ Guidelines:
   - migration script for permission seed updates
   - documentation update in this file and auth service design.
 - Breaking permission renames require deprecation alias period where feasible.
-- All permission changes tracked in `V3__seed_rbac_defaults.sql` and subsequent migration files.
+- All permission changes tracked in `V2__seed_rbac_data.sql` (auth-service) and subsequent migration files.

@@ -6,6 +6,8 @@ namespace: staging
 resources:
 - ../../base
 - namespace.yaml
+- api-gateway-ingress.yaml
+- subdomain-ingress.yaml
 
 patchesStrategicMerge:
 - configmap-patches.yaml

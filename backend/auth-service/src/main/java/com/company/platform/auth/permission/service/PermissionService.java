@@ -32,7 +32,6 @@ public class PermissionService {
             .permissionCode(request.getPermissionCode())
             .resourceName(request.getResourceName())
             .actionName(request.getActionName())
-            .createdBy(permissionEvaluator.currentUserId())
             .build();
     perm = permissionRepository.save(perm);
     return toResponse(perm);
@@ -53,7 +52,7 @@ public class PermissionService {
 
   private PermissionResponse toResponse(AuthPermission p) {
     return PermissionResponse.builder()
-        .id(p.getId())
+        .id(p.getId() != null ? p.getId().toString() : null)
         .permissionCode(p.getPermissionCode())
         .resourceName(p.getResourceName())
         .actionName(p.getActionName())

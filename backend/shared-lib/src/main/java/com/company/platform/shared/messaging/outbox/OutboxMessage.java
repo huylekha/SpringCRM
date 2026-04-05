@@ -1,8 +1,8 @@
 package com.company.platform.shared.messaging.outbox;
 
+import com.company.platform.shared.entity.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.UUID;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -16,11 +16,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OutboxMessage {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class OutboxMessage extends BaseEntityUUID {
 
   @Column(name = "aggregate_type", nullable = false, length = 100)
   private String aggregateType;
@@ -51,19 +47,8 @@ public class OutboxMessage {
   @Builder.Default
   private Integer maxRetries = 3;
 
-  @CreatedDate
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
-
   @Column(name = "processed_at")
   private Instant processedAt;
-
-  @PrePersist
-  public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
-  }
 
   /** Mark the message as sent successfully. */
   public void markAsSent() {
@@ -84,4 +69,8 @@ public class OutboxMessage {
   public boolean canRetry() {
     return this.status == OutboxStatus.PENDING && this.retryCount < this.maxRetries;
   }
+
+  @CreatedDate
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 }

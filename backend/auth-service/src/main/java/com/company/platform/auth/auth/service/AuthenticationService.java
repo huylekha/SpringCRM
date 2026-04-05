@@ -89,7 +89,7 @@ public class AuthenticationService {
             .distinct()
             .toList();
 
-    String accessToken = tokenProvider.generateAccessToken(user.getId(), roles, claims);
+    String accessToken = tokenProvider.generateAccessToken(user.getId().toString(), roles, claims);
     String refreshTokenValue = tokenProvider.generateRefreshTokenValue();
 
     RefreshToken refreshToken =
@@ -103,7 +103,7 @@ public class AuthenticationService {
 
     AuthUserSnapshot snapshot =
         AuthUserSnapshot.builder()
-            .id(user.getId())
+            .id(user.getId().toString())
             .username(user.getUsername())
             .email(user.getEmail())
             .roles(roles)
@@ -157,7 +157,8 @@ public class AuthenticationService {
             .distinct()
             .toList();
 
-    String newAccessToken = tokenProvider.generateAccessToken(user.getId(), roles, claims);
+    String newAccessToken =
+        tokenProvider.generateAccessToken(user.getId().toString(), roles, claims);
     String newRefreshValue = tokenProvider.generateRefreshTokenValue();
 
     RefreshToken newRefreshToken =

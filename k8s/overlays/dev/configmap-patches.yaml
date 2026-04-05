@@ -5,7 +5,7 @@ metadata:
   name: auth-service-config
 data:
   DB_HOST: "dev-postgres"
-  DB_NAME: "crm_platform_dev"
+  DB_NAME: "springcrm_auth"
   REDIS_HOST: "dev-redis"
   JWT_ISSUER: "crm-platform-dev"
 ---
@@ -15,7 +15,7 @@ metadata:
   name: crm-service-config
 data:
   DB_HOST: "dev-postgres"
-  DB_NAME: "crm_platform_dev"
+  DB_NAME: "springcrm_crm"
   REDIS_HOST: "dev-redis"
   AUTH_SERVICE_URL: "http://dev-auth-service:8081"
 ---
@@ -24,7 +24,7 @@ kind: ConfigMap
 metadata:
   name: postgres-config
 data:
-  POSTGRES_DB: "crm_platform_dev"
+  POSTGRES_DB: "springcrm_auth"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -40,5 +40,9 @@ kind: ConfigMap
 metadata:
   name: frontend-config
 data:
-  NEXT_PUBLIC_API_BASE_URL: "http://springcrm.com/dev/api-gateway/api/v1"
-  NEXTAUTH_URL: "http://springcrm.com/dev/frontend"
+  NEXT_PUBLIC_API_BASE_URL: "http://dev.api.springcrm.com/api/v1"
+  NEXTAUTH_URL: "http://dev.springcrm.com"
+  NEXT_PUBLIC_ENVIRONMENT: "development"
+  # Legacy URLs for backward compatibility during migration
+  LEGACY_API_BASE_URL: "http://springcrm.com/dev/api-gateway/api/v1"
+  LEGACY_NEXTAUTH_URL: "http://springcrm.com/dev/frontend"

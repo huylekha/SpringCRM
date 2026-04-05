@@ -1,6 +1,7 @@
 package com.company.platform.auth.auth.service;
 
 import com.company.platform.auth.user.repository.AuthUserRepository;
+import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,7 @@ public class PermissionEvaluator {
 
   @Transactional(readOnly = true)
   public boolean has(String permissionCode) {
-    String userId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    UUID userId = currentUserIdAsUUID();
     return userRepository
         .findByIdAndDeletedFalse(userId)
         .map(
@@ -29,5 +30,9 @@ public class PermissionEvaluator {
 
   public String currentUserId() {
     return (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+  }
+
+  public UUID currentUserIdAsUUID() {
+    return UUID.fromString(currentUserId());
   }
 }

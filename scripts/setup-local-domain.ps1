@@ -1,28 +1,66 @@
-# Setup Local Domain for SpringCRM
-# This script configures springcrm.com to point to localhost for local testing
-
+# Setup Local Domain for SpringCRM - Microservices Architecture
 param(
     [string]$Domain = "springcrm.com",
     [string]$IP = "127.0.0.1",
     [switch]$Remove,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$BatchSetup,
+    [string[]]$Subdomains = @()
 )
 
-# Require Administrator privileges
+# Check if running as Administrator
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Host "❌ This script requires Administrator privileges!" -ForegroundColor Red
     Write-Host "   Please run PowerShell as Administrator and try again." -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "💡 Quick way: Right-click PowerShell → 'Run as Administrator'" -ForegroundColor Cyan
+    Write-Host "🚀 Quick way: Right-click PowerShell → 'Run as Administrator'" -ForegroundColor Cyan
+    Write-Host ""
     exit 1
 }
 
+# Configuration
 $HostsFile = "$env:SystemRoot\System32\drivers\etc\hosts"
 $BackupFile = "$env:SystemRoot\System32\drivers\etc\hosts.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
-Write-Host "🔧 SpringCRM Local Domain Setup" -ForegroundColor Green
-Write-Host "================================" -ForegroundColor Green
+# Default subdomains for SpringCRM - Microservices Architecture
+$DefaultSubdomains = @(
+    "dev.api",       # dev.api.springcrm.com - Development API Gateway
+    "staging.api",   # staging.api.springcrm.com - Staging API Gateway  
+    "api",           # api.springcrm.com - Production API Gateway
+    "dev",           # dev.springcrm.com - Development Frontend
+    "staging",       # staging.springcrm.com - Staging Frontend
+    "grafana",       # grafana.springcrm.com - Monitoring (shared)
+    "prometheus",    # prometheus.springcrm.com - Metrics (shared)
+    "alertmanager"   # alertmanager.springcrm.com - Alerts (shared)
+)
+
+# Determine subdomains to use
+$SubdomainsToUse = if ($Subdomains.Count -gt 0) { $Subdomains } else { $DefaultSubdomains }
+
+# Determine domains to process
+$DomainsToProcess = @()
+if ($BatchSetup) {
+    # Add main domain
+    $DomainsToProcess += $Domain
+    
+    # Add subdomains
+    foreach ($subdomain in $SubdomainsToUse) {
+        $DomainsToProcess += "$subdomain.$Domain"
+    }
+} else {
+    $DomainsToProcess += $Domain
+}
+
+Write-Host "🔧 SpringCRM Microservices Domain Setup" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
+
+if ($BatchSetup) {
+    Write-Host "📦 Batch mode: Setting up microservices subdomain architecture" -ForegroundColor Cyan
+    Write-Host "   Main domain: $Domain" -ForegroundColor Gray
+    Write-Host "   Subdomains: $($SubdomainsToUse -join ', ')" -ForegroundColor Gray
+    Write-Host ""
+}
 
 # Create backup
 try {
@@ -34,106 +72,106 @@ try {
 }
 
 # Read current hosts file
-$HostsContent = Get-Content $HostsFile
+try {
+    $CurrentContent = Get-Content $HostsFile -ErrorAction Stop
+} catch {
+    Write-Host "❌ Failed to read hosts file: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
 
-# Check if domain already exists
-$ExistingEntry = $HostsContent | Where-Object { $_ -match "^\s*\d+\.\d+\.\d+\.\d+\s+$Domain\s*$" }
+# Process all domains
+$UpdatedContent = $CurrentContent
 
-if ($Remove) {
-    # Remove domain entry
-    if ($ExistingEntry) {
-        Write-Host "🗑️  Removing domain entry for $Domain..." -ForegroundColor Yellow
-        
-        $NewContent = $HostsContent | Where-Object { $_ -notmatch "^\s*\d+\.\d+\.\d+\.\d+\s+$Domain\s*$" }
-        
-        try {
-            $NewContent | Out-File -FilePath $HostsFile -Encoding ASCII -Force
-            Write-Host "✅ Successfully removed $Domain from hosts file" -ForegroundColor Green
-        } catch {
-            Write-Host "❌ Failed to update hosts file: $($_.Exception.Message)" -ForegroundColor Red
-            exit 1
+foreach ($DomainToProcess in $DomainsToProcess) {
+    $ExistingEntry = $UpdatedContent | Where-Object { $_ -match "^\s*\d+\.\d+\.\d+\.\d+\s+$DomainToProcess\s*$" }
+    
+    if ($Remove) {
+        if ($ExistingEntry) {
+            Write-Host "🗑️  Removing $DomainToProcess..." -ForegroundColor Yellow
+            $UpdatedContent = $UpdatedContent | Where-Object { $_ -notmatch "^\s*\d+\.\d+\.\d+\.\d+\s+$DomainToProcess\s*$" }
+        } else {
+            Write-Host "ℹ️  $DomainToProcess not found in hosts file" -ForegroundColor Gray
         }
     } else {
-        Write-Host "ℹ️  Domain $Domain not found in hosts file" -ForegroundColor Yellow
-    }
-    exit 0
-}
-
-# Add or update domain entry
-if ($ExistingEntry) {
-    if (-not $Force) {
-        Write-Host "⚠️  Domain $Domain already exists in hosts file:" -ForegroundColor Yellow
-        Write-Host "   $ExistingEntry" -ForegroundColor Gray
-        Write-Host ""
-        $Response = Read-Host "Do you want to update it? (y/N)"
-        if ($Response -ne 'y' -and $Response -ne 'Y') {
-            Write-Host "❌ Operation cancelled" -ForegroundColor Red
-            exit 1
-        }
-    }
-    
-    Write-Host "🔄 Updating existing domain entry..." -ForegroundColor Yellow
-    
-    # Replace existing entry
-    $NewContent = $HostsContent | ForEach-Object {
-        if ($_ -match "^\s*\d+\.\d+\.\d+\.\d+\s+$Domain\s*$") {
-            "$IP`t$Domain"
+        if ($ExistingEntry) {
+            if (-not $Force) {
+                Write-Host "⚠️  $DomainToProcess already exists: $ExistingEntry" -ForegroundColor Yellow
+                $Response = Read-Host "Update $DomainToProcess? (y/N)"
+                if ($Response -notmatch '^[Yy]') {
+                    Write-Host "⏭️  Skipping $DomainToProcess" -ForegroundColor Gray
+                    continue
+                }
+            }
+            Write-Host "🔄 Updating $DomainToProcess..." -ForegroundColor Cyan
+            $UpdatedContent = $UpdatedContent | Where-Object { $_ -notmatch "^\s*\d+\.\d+\.\d+\.\d+\s+$DomainToProcess\s*$" }
+            $UpdatedContent += "$IP`t$DomainToProcess"
         } else {
-            $_
+            Write-Host "➕ Adding $DomainToProcess..." -ForegroundColor Green
+            $UpdatedContent += "$IP`t$DomainToProcess"
         }
     }
-} else {
-    Write-Host "➕ Adding new domain entry..." -ForegroundColor Yellow
-    
-    # Add new entry
-    $NewContent = $HostsContent + @("", "# SpringCRM Local Development", "$IP`t$Domain")
 }
 
-# Write updated hosts file
+# Write updated content back to hosts file
 try {
-    $NewContent | Out-File -FilePath $HostsFile -Encoding ASCII -Force
+    $UpdatedContent | Out-File -FilePath $HostsFile -Encoding ASCII -Force
     Write-Host "✅ Successfully updated hosts file" -ForegroundColor Green
 } catch {
     Write-Host "❌ Failed to update hosts file: $($_.Exception.Message)" -ForegroundColor Red
-    
-    # Restore backup
-    try {
-        Copy-Item $BackupFile $HostsFile -Force
-        Write-Host "🔄 Restored backup file" -ForegroundColor Yellow
-    } catch {
-        Write-Host "❌ Failed to restore backup: $($_.Exception.Message)" -ForegroundColor Red
-    }
+    Write-Host "💡 Make sure you're running as Administrator" -ForegroundColor Yellow
     exit 1
 }
 
 # Flush DNS cache
-Write-Host "🔄 Flushing DNS cache..." -ForegroundColor Yellow
 try {
     ipconfig /flushdns | Out-Null
-    Write-Host "✅ DNS cache flushed" -ForegroundColor Green
+    Write-Host "🔄 DNS cache flushed" -ForegroundColor Green
 } catch {
     Write-Host "⚠️  Failed to flush DNS cache, but domain should still work" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "🎉 Domain setup complete!" -ForegroundColor Green
+Write-Host "🎉 Microservices domain setup completed!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📋 Configuration Summary:" -ForegroundColor Cyan
-Write-Host "   Domain: $Domain" -ForegroundColor Gray
-Write-Host "   IP: $IP" -ForegroundColor Gray
-Write-Host "   Hosts file: $HostsFile" -ForegroundColor Gray
-Write-Host "   Backup: $BackupFile" -ForegroundColor Gray
+
+if (-not $Remove) {
+    Write-Host "🌐 New Microservices Architecture URLs:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "📱 Frontend Applications:" -ForegroundColor Yellow
+    Write-Host "   Development: http://dev.$Domain" -ForegroundColor Gray
+    Write-Host "   Staging: http://staging.$Domain" -ForegroundColor Gray
+    Write-Host "   Production: http://$Domain" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "🔌 API Gateways:" -ForegroundColor Yellow
+    Write-Host "   Development: http://dev.api.$Domain" -ForegroundColor Gray
+    Write-Host "   Staging: http://staging.api.$Domain" -ForegroundColor Gray
+    Write-Host "   Production: http://api.$Domain" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "📊 Monitoring (Shared):" -ForegroundColor Yellow
+    Write-Host "   Grafana: http://grafana.$Domain" -ForegroundColor Gray
+    Write-Host "   Prometheus: http://prometheus.$Domain" -ForegroundColor Gray
+    Write-Host "   AlertManager: http://alertmanager.$Domain" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "🧪 Example API Calls:" -ForegroundColor Cyan
+    Write-Host "   Auth Service: http://dev.api.$Domain/api/v1/auth/actuator/health" -ForegroundColor Gray
+    Write-Host "   CRM Service: http://dev.api.$Domain/api/v1/customers" -ForegroundColor Gray
+    Write-Host "   Gateway Health: http://dev.api.$Domain/actuator/health" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "💡 Usage Examples:" -ForegroundColor Cyan
+    Write-Host "   Setup all subdomains: .\scripts\setup-local-domain.ps1 -BatchSetup" -ForegroundColor Gray
+    Write-Host "   Setup custom subdomains: .\scripts\setup-local-domain.ps1 -BatchSetup -Subdomains @('dev.api','staging.api')" -ForegroundColor Gray
+    Write-Host "   Remove all domains: .\scripts\setup-local-domain.ps1 -Remove -BatchSetup" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "🎯 Next Steps:" -ForegroundColor Cyan
+    Write-Host "   1. Apply new Kubernetes ingress configurations" -ForegroundColor Gray
+    Write-Host "   2. Update API Gateway routing" -ForegroundColor Gray
+    Write-Host "   3. Test microservices communication" -ForegroundColor Gray
+} else {
+    Write-Host "✅ All specified domains have been removed from hosts file" -ForegroundColor Green
+    Write-Host "💡 Backup created at: $BackupFile" -ForegroundColor Cyan
+}
+
 Write-Host ""
-Write-Host "🔗 Test URLs:" -ForegroundColor Cyan
-Write-Host "   Development: http://$Domain/dev/frontend/" -ForegroundColor Gray
-Write-Host "   Staging: http://$Domain/staging/frontend/" -ForegroundColor Gray
-Write-Host "   Production: https://$Domain/prod/frontend/" -ForegroundColor Gray
-Write-Host ""
-Write-Host "🧪 Health Check URLs:" -ForegroundColor Cyan
-Write-Host "   Auth Service: http://$Domain/dev/auth-service/actuator/health" -ForegroundColor Gray
-Write-Host "   CRM Service: http://$Domain/dev/crm-service/actuator/health" -ForegroundColor Gray
-Write-Host "   API Gateway: http://$Domain/dev/api-gateway/actuator/health" -ForegroundColor Gray
-Write-Host ""
-Write-Host "💡 To remove this configuration later, run:" -ForegroundColor Cyan
-Write-Host "   .\scripts\setup-local-domain.ps1 -Remove" -ForegroundColor Gray
+Write-Host "📋 Backup location: $BackupFile" -ForegroundColor Cyan
+Write-Host "🔧 Hosts file location: $HostsFile" -ForegroundColor Cyan
 Write-Host ""

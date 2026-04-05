@@ -4,7 +4,9 @@ kind: ConfigMap
 metadata:
   name: auth-service-config
 data:
-  DB_NAME: "crm_platform_staging"
+  DB_HOST: "staging-postgres"
+  DB_NAME: "springcrm_auth"
+  REDIS_HOST: "staging-redis"
   JWT_ISSUER: "crm-platform-staging"
 ---
 apiVersion: v1
@@ -12,19 +14,34 @@ kind: ConfigMap
 metadata:
   name: crm-service-config
 data:
-  DB_NAME: "crm_platform_staging"
+  DB_HOST: "staging-postgres"
+  DB_NAME: "springcrm_crm"
+  REDIS_HOST: "staging-redis"
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-config
 data:
-  POSTGRES_DB: "crm_platform_staging"
+  POSTGRES_DB: "springcrm_auth"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+data:
+  REDIS_HOST: "staging-redis"
+  AUTH_SERVICE_URL: "http://staging-auth-service:8081"
+  CRM_SERVICE_URL: "http://staging-crm-service:8082"
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: frontend-config
 data:
-  NEXT_PUBLIC_API_BASE_URL: "http://springcrm.com/staging/api-gateway/api/v1"
-  NEXTAUTH_URL: "http://springcrm.com/staging/frontend"
+  NEXT_PUBLIC_API_BASE_URL: "http://staging.api.springcrm.com/api/v1"
+  NEXTAUTH_URL: "http://staging.springcrm.com"
+  NEXT_PUBLIC_ENVIRONMENT: "staging"
+  # Legacy URLs for backward compatibility during migration
+  LEGACY_API_BASE_URL: "http://springcrm.com/staging/api-gateway/api/v1"
+  LEGACY_NEXTAUTH_URL: "http://springcrm.com/staging/frontend"

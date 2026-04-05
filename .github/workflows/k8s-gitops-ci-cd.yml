@@ -372,27 +372,66 @@ jobs:
           
           Write-Host "🧪 Running smoke tests for environment: $Environment" -ForegroundColor Yellow
           
-          # Basic connectivity tests using springcrm.com domain
-          $BaseUrl = "http://springcrm.com"
-          $Services = @("auth-service", "crm-service", "api-gateway", "frontend")
+          # Enhanced connectivity tests using new subdomain architecture
+          $Protocol = if ($Environment -eq "prod") { "https" } else { "http" }
           
-          foreach ($service in $Services) {
-            $url = "$BaseUrl/$Environment/$service/actuator/health"
-            if ($service -eq "frontend") {
-              $url = "$BaseUrl/$Environment/$service/api/health"
-            }
-            
+          # Test main application endpoints
+          $MainEndpoints = @{
+            "Frontend" = "$Protocol://springcrm.com/api/health"
+            "API Gateway" = "$Protocol://api.springcrm.com/actuator/health"
+            "Grafana" = "$Protocol://grafana.springcrm.com/api/health"
+            "Prometheus" = "$Protocol://prometheus.springcrm.com/-/healthy"
+          }
+          
+          # Test environment-specific service endpoints
+          $EnvUrl = "$Protocol://$Environment.springcrm.com"
+          $ServiceEndpoints = @{
+            "Auth Service" = "$EnvUrl/auth-service/actuator/health"
+            "CRM Service" = "$EnvUrl/crm-service/actuator/health"
+          }
+          
+          Write-Host "🔗 Testing main endpoints..." -ForegroundColor Cyan
+          foreach ($endpoint in $MainEndpoints.GetEnumerator()) {
             try {
-              Write-Host "   Testing $service..." -ForegroundColor Gray
-              $response = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing
+              Write-Host "   Testing $($endpoint.Key)..." -ForegroundColor Gray
+              $response = Invoke-WebRequest -Uri $endpoint.Value -TimeoutSec 10 -UseBasicParsing
               if ($response.StatusCode -eq 200) {
-                Write-Host "   ✅ $service is healthy" -ForegroundColor Green
+                Write-Host "   ✅ $($endpoint.Key) is healthy" -ForegroundColor Green
               } else {
-                Write-Host "   ⚠️  $service returned status $($response.StatusCode)" -ForegroundColor Yellow
+                Write-Host "   ⚠️  $($endpoint.Key) returned status $($response.StatusCode)" -ForegroundColor Yellow
               }
             } catch {
-              Write-Host "   ❌ $service health check failed: $($_.Exception.Message)" -ForegroundColor Red
-              # Don't fail the entire pipeline for smoke test failures in non-prod
+              Write-Host "   ❌ $($endpoint.Key) health check failed: $($_.Exception.Message)" -ForegroundColor Red
+              # Try legacy URL as fallback
+              $legacyUrl = "http://springcrm.com/$Environment/" + $endpoint.Key.ToLower().Replace(" ", "-") + "/actuator/health"
+              try {
+                Write-Host "     🔄 Trying legacy URL..." -ForegroundColor Gray
+                $response = Invoke-WebRequest -Uri $legacyUrl -TimeoutSec 10 -UseBasicParsing
+                if ($response.StatusCode -eq 200) {
+                  Write-Host "     ✅ $($endpoint.Key) healthy via legacy URL" -ForegroundColor Green
+                }
+              } catch {
+                Write-Host "     ❌ Legacy URL also failed" -ForegroundColor Red
+                if ($Environment -eq "prod") {
+                  throw
+                }
+              }
+            }
+          }
+          
+          Write-Host ""
+          Write-Host "🔗 Testing environment-specific endpoints..." -ForegroundColor Cyan
+          foreach ($endpoint in $ServiceEndpoints.GetEnumerator()) {
+            try {
+              Write-Host "   Testing $($endpoint.Key)..." -ForegroundColor Gray
+              $response = Invoke-WebRequest -Uri $endpoint.Value -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "   ✅ $($endpoint.Key) is healthy" -ForegroundColor Green
+              } else {
+                Write-Host "   ⚠️  $($endpoint.Key) returned status $($response.StatusCode)" -ForegroundColor Yellow
+              }
+            } catch {
+              Write-Host "   ❌ $($endpoint.Key) health check failed: $($_.Exception.Message)" -ForegroundColor Red
               if ($Environment -eq "prod") {
                 throw
               }

@@ -15,6 +15,7 @@ import com.company.platform.auth.role.repository.AuthRoleRepository;
 import com.company.platform.shared.exception.DuplicateResourceException;
 import com.company.platform.shared.exception.ResourceNotFoundException;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,12 +40,11 @@ class RoleServiceTest {
   @Test
   void createRole_success() {
     when(roleRepository.existsByRoleCodeAndDeletedFalse("NEW_ROLE")).thenReturn(false);
-    when(permissionEvaluator.currentUserId()).thenReturn("admin-id");
     when(roleRepository.save(any()))
         .thenAnswer(
             i -> {
               AuthRole r = i.getArgument(0);
-              r.setId("generated-id");
+              r.setId(UUID.randomUUID());
               return r;
             });
 
@@ -71,9 +71,10 @@ class RoleServiceTest {
 
   @Test
   void getRole_notFound_throws404() {
-    when(roleRepository.findByIdAndDeletedFalse("missing")).thenReturn(Optional.empty());
+    UUID missingId = UUID.randomUUID();
+    when(roleRepository.findByIdAndDeletedFalse(missingId)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> roleService.getRole("missing"))
+    assertThatThrownBy(() -> roleService.getRole(missingId.toString()))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 }

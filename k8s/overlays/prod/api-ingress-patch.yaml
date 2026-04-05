@@ -1,0 +1,69 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway-ingress
+  namespace: prod
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://springcrm.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/rate-limit: "200"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      add_header X-Environment "prod" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+spec:
+  tls:
+  - hosts:
+    - api.springcrm.com
+    secretName: wildcard-springcrm-tls-secret
+  rules:
+  - host: api.springcrm.com
+    http:
+      paths:
+      # API Gateway routes - points to prod api-gateway
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080
+      # Specific API version routes
+      - path: /v1
+        pathType: Prefix
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080
+      # Authentication routes
+      - path: /auth
+        pathType: Prefix
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080
+      # CRM API routes
+      - path: /crm
+        pathType: Prefix
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080
+      # Actuator health endpoint for API Gateway
+      - path: /actuator
+        pathType: Prefix
+        backend:
+          service:
+            name: prod-api-gateway
+            port:
+              number: 8080

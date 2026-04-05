@@ -1,5 +1,6 @@
 package com.company.platform.auth.auth.domain;
 
+import com.company.platform.shared.entity.BaseEntityUUID;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -15,17 +16,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RefreshToken {
-
-  @Id
-  @Column(length = 36)
-  private String id;
+public class RefreshToken extends BaseEntityUUID {
 
   @Column(name = "token_hash", nullable = false, unique = true, length = 255)
   private String tokenHash;
 
-  @Column(name = "user_id", nullable = false, length = 36)
-  private String userId;
+  @Column(name = "user_id", nullable = false, columnDefinition = "UUID")
+  private UUID userId;
 
   @Column(nullable = false)
   @Builder.Default
@@ -37,11 +34,4 @@ public class RefreshToken {
   @CreatedDate
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
-
-  @PrePersist
-  public void prePersist() {
-    if (this.id == null) {
-      this.id = UUID.randomUUID().toString();
-    }
-  }
 }

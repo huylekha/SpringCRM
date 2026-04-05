@@ -1,0 +1,242 @@
+{
+  "title": "SpringCRM Service Discovery Dashboard",
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-25T20:35:00Z",
+  "environments": {
+    "development": {
+      "name": "Development",
+      "color": "#10B981",
+      "protocol": "http",
+      "description": "Local development environment"
+    },
+    "staging": {
+      "name": "Staging", 
+      "color": "#F59E0B",
+      "protocol": "http",
+      "description": "Pre-production testing environment"
+    },
+    "production": {
+      "name": "Production",
+      "color": "#EF4444", 
+      "protocol": "https",
+      "description": "Live production environment"
+    }
+  },
+  "services": {
+    "frontend": {
+      "name": "Frontend Application",
+      "description": "Next.js React application - main user interface",
+      "category": "Application",
+      "icon": "🖥️",
+      "endpoints": {
+        "development": {
+          "main": "http://springcrm.com",
+          "health": "http://springcrm.com/api/health",
+          "legacy": "http://springcrm.com/dev/frontend"
+        },
+        "staging": {
+          "main": "http://staging.springcrm.com",
+          "health": "http://staging.springcrm.com/api/health",
+          "legacy": "http://springcrm.com/staging/frontend"
+        },
+        "production": {
+          "main": "https://springcrm.com",
+          "health": "https://springcrm.com/api/health",
+          "legacy": "https://springcrm.com/prod/frontend"
+        }
+      },
+      "documentation": "/docs/frontend/README.md",
+      "repository": "frontend/"
+    },
+    "api-gateway": {
+      "name": "API Gateway",
+      "description": "Spring Cloud Gateway - API routing and load balancing",
+      "category": "API",
+      "icon": "🌐",
+      "endpoints": {
+        "development": {
+          "main": "http://api.springcrm.com",
+          "health": "http://api.springcrm.com/actuator/health",
+          "metrics": "http://api.springcrm.com/actuator/metrics",
+          "legacy": "http://springcrm.com/dev/api-gateway"
+        },
+        "staging": {
+          "main": "http://api.springcrm.com",
+          "health": "http://api.springcrm.com/actuator/health",
+          "metrics": "http://api.springcrm.com/actuator/metrics",
+          "legacy": "http://springcrm.com/staging/api-gateway"
+        },
+        "production": {
+          "main": "https://api.springcrm.com",
+          "health": "https://api.springcrm.com/actuator/health",
+          "metrics": "https://api.springcrm.com/actuator/metrics",
+          "legacy": "https://springcrm.com/prod/api-gateway"
+        }
+      },
+      "documentation": "/docs/backend/api-gateway.md",
+      "repository": "backend/api-gateway/"
+    },
+    "auth-service": {
+      "name": "Authentication Service",
+      "description": "Spring Boot service - user authentication and authorization",
+      "category": "Microservice",
+      "icon": "🔐",
+      "endpoints": {
+        "development": {
+          "health": "http://dev.springcrm.com/auth-service/actuator/health",
+          "metrics": "http://dev.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "http://springcrm.com/dev/auth-service"
+        },
+        "staging": {
+          "health": "http://staging.springcrm.com/auth-service/actuator/health",
+          "metrics": "http://staging.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "http://springcrm.com/staging/auth-service"
+        },
+        "production": {
+          "health": "https://prod.springcrm.com/auth-service/actuator/health",
+          "metrics": "https://prod.springcrm.com/auth-service/actuator/metrics",
+          "legacy": "https://springcrm.com/prod/auth-service"
+        }
+      },
+      "documentation": "/docs/backend/auth-service.md",
+      "repository": "backend/auth-service/"
+    },
+    "crm-service": {
+      "name": "CRM Service",
+      "description": "Spring Boot service - customer relationship management",
+      "category": "Microservice", 
+      "icon": "👥",
+      "endpoints": {
+        "development": {
+          "health": "http://dev.springcrm.com/crm-service/actuator/health",
+          "metrics": "http://dev.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "http://springcrm.com/dev/crm-service"
+        },
+        "staging": {
+          "health": "http://staging.springcrm.com/crm-service/actuator/health",
+          "metrics": "http://staging.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "http://springcrm.com/staging/crm-service"
+        },
+        "production": {
+          "health": "https://prod.springcrm.com/crm-service/actuator/health",
+          "metrics": "https://prod.springcrm.com/crm-service/actuator/metrics",
+          "legacy": "https://springcrm.com/prod/crm-service"
+        }
+      },
+      "documentation": "/docs/backend/crm-service.md",
+      "repository": "backend/crm-service/"
+    },
+    "grafana": {
+      "name": "Grafana",
+      "description": "Monitoring dashboard and visualization platform",
+      "category": "Monitoring",
+      "icon": "📊",
+      "endpoints": {
+        "development": {
+          "main": "http://grafana.springcrm.com",
+          "legacy": "http://springcrm.com/grafana"
+        },
+        "staging": {
+          "main": "http://grafana.springcrm.com",
+          "legacy": "http://springcrm.com/grafana"
+        },
+        "production": {
+          "main": "https://grafana.springcrm.com",
+          "legacy": "https://springcrm.com/grafana"
+        }
+      },
+      "credentials": {
+        "username": "admin",
+        "note": "Password available in MONITORING-ACCESS.md"
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "prometheus": {
+      "name": "Prometheus",
+      "description": "Metrics collection and monitoring system",
+      "category": "Monitoring",
+      "icon": "🔍",
+      "endpoints": {
+        "development": {
+          "main": "http://prometheus.springcrm.com",
+          "legacy": "http://springcrm.com/prometheus"
+        },
+        "staging": {
+          "main": "http://prometheus.springcrm.com",
+          "legacy": "http://springcrm.com/prometheus"
+        },
+        "production": {
+          "main": "https://prometheus.springcrm.com",
+          "legacy": "https://springcrm.com/prometheus"
+        }
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "alertmanager": {
+      "name": "AlertManager",
+      "description": "Alert handling and notification system",
+      "category": "Monitoring",
+      "icon": "🚨",
+      "endpoints": {
+        "development": {
+          "main": "http://alertmanager.springcrm.com"
+        },
+        "staging": {
+          "main": "http://alertmanager.springcrm.com"
+        },
+        "production": {
+          "main": "https://alertmanager.springcrm.com"
+        }
+      },
+      "documentation": "/docs/setup/monitoring-stack-setup.md"
+    },
+    "docker-registry": {
+      "name": "Docker Registry",
+      "description": "Local Docker image registry",
+      "category": "Infrastructure",
+      "icon": "🐳",
+      "endpoints": {
+        "development": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        },
+        "staging": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        },
+        "production": {
+          "main": "http://localhost:5000",
+          "catalog": "http://localhost:5000/v2/_catalog"
+        }
+      },
+      "documentation": "/docs/devops/docker-build-templates.md"
+    }
+  },
+  "categories": {
+    "Application": {
+      "name": "Applications",
+      "color": "#3B82F6",
+      "description": "Main user-facing applications"
+    },
+    "API": {
+      "name": "API Services",
+      "color": "#8B5CF6",
+      "description": "API gateways and routing services"
+    },
+    "Microservice": {
+      "name": "Microservices",
+      "color": "#06B6D4",
+      "description": "Backend business logic services"
+    },
+    "Monitoring": {
+      "name": "Monitoring",
+      "color": "#F59E0B",
+      "description": "Observability and monitoring tools"
+    },
+    "Infrastructure": {
+      "name": "Infrastructure",
+      "color": "#6B7280",
+      "description": "Supporting infrastructure services"
+    }
+  }
+}

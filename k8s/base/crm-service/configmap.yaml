@@ -9,7 +9,7 @@ data:
   SPRING_PROFILES_ACTIVE: "k8s,postgres"
   DB_HOST: "postgres"
   DB_PORT: "5432"
-  DB_NAME: "crm_platform_dev"  # Will be overridden by overlays
+  DB_NAME: "springcrm_crm"
   DB_USER: "crm_user"
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"

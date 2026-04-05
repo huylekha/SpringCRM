@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.company.platform.shared.config.SharedEntityAutoConfiguration,\
+com.company.platform.shared.messaging.config.SharedMessagingAutoConfiguration

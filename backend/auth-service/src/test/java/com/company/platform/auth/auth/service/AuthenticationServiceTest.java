@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceTest {
+
+  private static final UUID USER_ID = UUID.randomUUID();
+  private static final UUID ROLE_ID = UUID.randomUUID();
+  private static final UUID REFRESH_TOKEN_ID = UUID.randomUUID();
 
   @Mock private AuthUserRepository userRepository;
   @Mock private RefreshTokenRepository refreshTokenRepository;
@@ -55,19 +60,45 @@ class AuthenticationServiceTest {
             userRepository, refreshTokenRepository, tokenProvider, passwordEncoder, meterRegistry);
   }
 
-  @Test
-  void login_validCredentials_returnsTokens() {
-    AuthRole role =
-        AuthRole.builder().id("r1").roleCode("SUPER_ADMIN").roleName("Super Admin").build();
+  private AuthRole buildRole(UUID id, String code, String name) {
+    AuthRole role = AuthRole.builder().roleCode(code).roleName(name).build();
+    role.setId(id);
+    return role;
+  }
+
+  private AuthUser buildUser(
+      UUID id, String username, String email, String hash, String status, Set<AuthRole> roles) {
     AuthUser user =
         AuthUser.builder()
-            .id("u1")
-            .username("admin")
-            .email("a@b.com")
-            .passwordHash(passwordEncoder.encode("Admin@123456"))
-            .status("ACTIVE")
-            .roles(Set.of(role))
+            .username(username)
+            .email(email)
+            .passwordHash(hash)
+            .status(status)
+            .roles(roles)
             .build();
+    user.setId(id);
+    return user;
+  }
+
+  private RefreshToken buildRefreshToken(UUID id, UUID userId, boolean revoked, Instant expiresAt) {
+    RefreshToken token =
+        RefreshToken.builder().userId(userId).revoked(revoked).expiresAt(expiresAt).build();
+    token.setId(id);
+    return token;
+  }
+
+  @Test
+  void login_validCredentials_returnsTokens() {
+    AuthRole role = buildRole(ROLE_ID, "SUPER_ADMIN", "Super Admin");
+    AuthUser user =
+        buildUser(
+            USER_ID,
+            "admin",
+            "a@b.com",
+            passwordEncoder.encode("Admin@123456"),
+            "ACTIVE",
+            Set.of(role));
+
     when(userRepository.findByUsernameAndDeletedFalse("admin")).thenReturn(Optional.of(user));
     when(userRepository.save(any())).thenReturn(user);
     when(refreshTokenRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -86,13 +117,9 @@ class AuthenticationServiceTest {
   @Test
   void login_wrongPassword_throwsUnauthorized() {
     AuthUser user =
-        AuthUser.builder()
-            .id("u1")
-            .username("admin")
-            .passwordHash(passwordEncoder.encode("Admin@123456"))
-            .status("ACTIVE")
-            .roles(Set.of())
-            .build();
+        buildUser(
+            USER_ID, "admin", null, passwordEncoder.encode("Admin@123456"), "ACTIVE", Set.of());
+
     when(userRepository.findByUsernameAndDeletedFalse("admin")).thenReturn(Optional.of(user));
     when(userRepository.save(any())).thenReturn(user);
 
@@ -107,14 +134,8 @@ class AuthenticationServiceTest {
 
   @Test
   void login_lockedAccount_throwsLocked() {
-    AuthUser user =
-        AuthUser.builder()
-            .id("u1")
-            .username("locked")
-            .passwordHash("hash")
-            .status("LOCKED")
-            .roles(Set.of())
-            .build();
+    AuthUser user = buildUser(USER_ID, "locked", null, "hash", "LOCKED", Set.of());
+
     when(userRepository.findByUsernameAndDeletedFalse("locked")).thenReturn(Optional.of(user));
 
     LoginRequest req = new LoginRequest();
@@ -142,22 +163,16 @@ class AuthenticationServiceTest {
   @Test
   void refresh_validToken_returnsNewTokens() {
     RefreshToken stored =
-        RefreshToken.builder()
-            .id("rt1")
-            .userId("u1")
-            .revoked(false)
-            .expiresAt(Instant.now().plusSeconds(3600))
-            .build();
+        buildRefreshToken(REFRESH_TOKEN_ID, USER_ID, false, Instant.now().plusSeconds(3600));
 
-    AuthRole role = AuthRole.builder().id("r1").roleCode("SALES_REP").roleName("Sales Rep").build();
-    AuthUser user =
-        AuthUser.builder().id("u1").username("user1").status("ACTIVE").roles(Set.of(role)).build();
+    AuthRole role = buildRole(ROLE_ID, "SALES_REP", "Sales Rep");
+    AuthUser user = buildUser(USER_ID, "user1", null, null, "ACTIVE", Set.of(role));
 
     String refreshValue = "test-refresh-value";
     when(refreshTokenRepository.findByTokenHashAndRevokedFalse(any()))
         .thenReturn(Optional.of(stored));
     when(refreshTokenRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-    when(userRepository.findByIdAndDeletedFalse("u1")).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedFalse(USER_ID)).thenReturn(Optional.of(user));
 
     RefreshRequest req = new RefreshRequest();
     req.setRefreshToken(refreshValue);
@@ -171,12 +186,8 @@ class AuthenticationServiceTest {
   @Test
   void logout_revokesToken() {
     RefreshToken stored =
-        RefreshToken.builder()
-            .id("rt1")
-            .userId("u1")
-            .revoked(false)
-            .expiresAt(Instant.now().plusSeconds(3600))
-            .build();
+        buildRefreshToken(REFRESH_TOKEN_ID, USER_ID, false, Instant.now().plusSeconds(3600));
+
     when(refreshTokenRepository.findByTokenHashAndRevokedFalse(any()))
         .thenReturn(Optional.of(stored));
     when(refreshTokenRepository.save(any())).thenAnswer(i -> i.getArgument(0));

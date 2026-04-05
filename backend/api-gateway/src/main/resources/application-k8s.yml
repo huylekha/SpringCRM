@@ -5,7 +5,7 @@ spring:
   cloud:
     gateway:
       routes:
-        # Auth Service Routes
+        # Auth Service Routes - All authentication endpoints
         - id: auth-service
           uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
           predicates:
@@ -18,11 +18,11 @@ spring:
                 redis-rate-limiter.burst-capacity: 20
                 key-resolver: "#{@ipKeyResolver}"
 
-        # CRM Service Routes
+        # CRM Service Routes - All CRM business logic
         - id: crm-service
           uri: ${CRM_SERVICE_URL:http://crm-service:8082}
           predicates:
-            - Path=/api/v1/customers/**,/api/v1/orders/**,/api/v1/leads/**
+            - Path=/api/v1/customers/**,/api/v1/orders/**,/api/v1/leads/**,/api/v1/crm/**
           filters:
             - StripPrefix=2  # Remove /api/v1
             - name: RequestRateLimiter
@@ -31,20 +31,35 @@ spring:
                 redis-rate-limiter.burst-capacity: 40
                 key-resolver: "#{@ipKeyResolver}"
 
-        # Health Check Routes (bypass authentication)
+        # Health Check Routes (bypass authentication for monitoring)
         - id: auth-health
           uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
           predicates:
             - Path=/api/v1/auth/actuator/health
           filters:
-            - StripPrefix=3
+            - StripPrefix=3  # Remove /api/v1/auth
 
         - id: crm-health
           uri: ${CRM_SERVICE_URL:http://crm-service:8082}
           predicates:
             - Path=/api/v1/crm/actuator/health
           filters:
-            - StripPrefix=3
+            - StripPrefix=3  # Remove /api/v1/crm
+
+        # Direct service health checks for troubleshooting
+        - id: auth-service-direct-health
+          uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
+          predicates:
+            - Path=/auth/actuator/health
+          filters:
+            - StripPrefix=1  # Remove /auth
+
+        - id: crm-service-direct-health
+          uri: ${CRM_SERVICE_URL:http://crm-service:8082}
+          predicates:
+            - Path=/crm/actuator/health
+          filters:
+            - StripPrefix=1  # Remove /crm
 
       # Global filters
       globalcors:

@@ -6,5 +6,5 @@ metadata:
     app: postgres
     component: database
 data:
-  POSTGRES_DB: "crm_platform_dev"  # Will be overridden by overlays
+  POSTGRES_DB: "springcrm_auth"
   POSTGRES_USER: "crm_user"

@@ -6,6 +6,8 @@ metadata:
     app: api-gateway
     component: backend
     tier: gateway
+    service-type: gateway
+    service-name: api-gateway
 spec:
   replicas: 2
   strategy:
@@ -22,6 +24,8 @@ spec:
         app: api-gateway
         component: backend
         tier: gateway
+        service-type: gateway
+        service-name: api-gateway
     spec:
       containers:
       - name: api-gateway
